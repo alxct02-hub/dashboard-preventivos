@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Ejecutivo de Mantenimiento - Ultra Resiliente</title>
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS para lectura flexible de Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --color-success: #10b981; 
+            --color-warning: #f59e0b;      
+            --color-danger: #ef4444; 
+            --color-navy: #1e3a8a;
+            --sidebar-width: 260px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-primary); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* NAVEGACIÓN LATERAL */
+        .sidebar {
+            width: var(--sidebar-width); background-color: #0f172a; color: white;
+            position: fixed; top: 0; bottom: 0; left: 0; padding: 24px 0;
+            display: flex; flex-direction: column; z-index: 100;
+        }
+        .sidebar-brand {
+            padding: 0 24px 24px 24px; font-size: 18px; font-weight: 700;
+            border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 12px;
+        }
+        .sidebar-menu { margin-top: 24px; list-style: none; }
+        .sidebar-item {
+            padding: 14px 24px; cursor: pointer; display: flex; align-items: center;
+            gap: 12px; font-size: 14px; font-weight: 500; transition: all 0.2s; color: #94a3b8;
+        }
+        .sidebar-item:hover, .sidebar-item.active { background-color: #1e293b; color: #f8fafc; border-left: 4px solid var(--color-success); }
+
+        /* CONTENIDO */
+        .main-content { margin-left: var(--sidebar-width); padding: 40px; width: calc(100% - var(--sidebar-width)); }
+        .tab-view { display: none; }
+        .tab-view.active { display: block; }
+
+        /* ZONA DE CARGA INTEGRAL */
+        .upload-card {
+            background: white; padding: 50px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            text-align: center; max-width: 650px; margin: 40px auto; border: 1px solid var(--border-color);
+        }
+        .drop-zone { border: 2px dashed #cbd5e1; padding: 60px 20px; border-radius: 12px; cursor: pointer; background-color: #f8fafc; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--color-success); background-color: #ecfdf5; }
+        .drop-zone i { font-size: 54px; color: #94a3b8; margin-bottom: 20px; }
+        #file-input { display: none; }
+
+        .status-message { margin-top: 24px; padding: 16px; border-radius: 8px; font-size: 14px; display: none; text-align: left; }
+        .status-message.success { background-color: #d1fae5; color: #065f46; display: block; }
+        .status-message.error { background-color: #fee2e2; color: #991b1b; display: block; }
+
+        /* ESTRUCTURA DASHBOARD */
+        header {
+            background: white; padding: 24px 32px; border-radius: 16px; margin-bottom: 32px;
+            display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color);
+        }
+        .badge-periodo { background-color: #f1f5f9; color: var(--color-navy); padding: 10px 20px; border-radius: 9999px; font-size: 14px; font-weight: 600; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; margin-bottom: 32px; }
+        .kpi-card { background-color: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); border: 1px solid var(--border-color); position: relative; }
+        .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px; border-radius: 16px 16px 0 0; background-color: #cbd5e1; }
+        .kpi-card.status-neutral::before { background-color: var(--color-navy); }
+        .kpi-card.status-success::before { background-color: var(--color-success); }
+        .kpi-card.status-warning::before { background-color: var(--color-warning); }
+        .kpi-card.status-danger::before { background-color: var(--color-danger); }
+
+        .kpi-title { font-size: 13px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
+        .kpi-value { font-size: 32px; font-weight: 700; margin-top: 8px; }
+        .kpi-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+
+        .charts-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 1024px) { .charts-grid { grid-template-columns: 1fr; } }
+        .chart-card { background-color: var(--card-bg); border-radius: 16px; padding: 28px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); border: 1px solid var(--border-color); }
+        .chart-container { position: relative; width: 100%; height: 320px; }
+
+        .insights-card { background-color: #fdfdfd; border-left: 5px solid var(--color-navy); padding: 20px; border-radius: 8px; margin-bottom: 32px; }
+
+        .table-card { background-color: var(--card-bg); border-radius: 16px; padding: 28px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); border: 1px solid var(--border-color); }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table th { background-color: #f8fafc; color: #475569; padding: 14px; font-weight: 600; border-bottom: 2px solid var(--border-color); }
+        table td { padding: 14px; border-bottom: 1px solid var(--border-color); }
+
+        .pill { padding: 6px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; }
+        .pill-success { background-color: #d1fae5; color: #065f46; }
+        .pill-warning { background-color: #fef3c7; color: #92400e; }
+        .pill-danger { background-color: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+
+    <!-- MENÚ LATERAL -->
+    <div class="sidebar">
+        <div class="sidebar-brand">
+            <i class="fa-solid fa-chart-line" style="color: var(--color-success)"></i>
+            <span>Control Ejecutivo</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item active" onclick="switchTab('upload')">
+                <i class="fa-solid fa-file-upload"></i> Cargar Datos
+            </li>
+            <li class="sidebar-item" id="menu-executive" onclick="switchTab('executive')">
+                <i class="fa-solid fa-pie-chart"></i> Resumen Ejecutivo
+            </li>
+            <li class="sidebar-item" id="menu-table" onclick="switchTab('table')">
+                <i class="fa-solid fa-table-list"></i> Tabla de Control
+            </li>
+        </ul>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        
+        <!-- PESTAÑA 1: CARGA -->
+        <div id="view-upload" class="tab-view active">
+            <h2 style="font-weight: 700; margin-bottom: 8px;">Carga de Reporte Mensual</h2>
+            <p style="color: var(--text-muted); margin-bottom: 32px;">Importa el libro de Excel para procesar los indicadores de cumplimiento.</p>
+            
+            <div class="upload-card">
+                <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                    <i class="fa-solid fa-file-excel" style="color: #10b981;"></i>
+                    <p style="font-size: 16px; font-weight: 500; color: #334155; margin-bottom: 8px;">Selecciona o arrastra tu archivo de Excel aquí</p>
+                    <span style="font-size: 13px; color: var(--text-muted);">Soporta formatos estándar de Excel</span>
+                    <input type="file" id="file-input" accept=".xlsx, .xls, .xlsm, .xlsb">
+                </div>
+                <div id="upload-status" class="status-message"></div>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR CENTRAL DEL DASHBOARD -->
+        <div id="dashboard-wrapper" style="display: none;">
+            <header>
+                <div>
+                    <h1 style="font-size: 24px; font-weight: 700;" id="txt-periodo-titulo">Análisis de Mantenimientos</h1>
+                    <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Reporte automatizado para Directores de Operaciones</p>
+                </div>
+                <div class="badge-periodo" id="lbl-periodo-actual">Pestaña: -</div>
+            </header>
+
+            <!-- PESTAÑA 2: VISIÓN INTEGRAL -->
+            <div id="view-executive" class="tab-view">
+                <div class="kpi-grid">
+                    <div class="kpi-card status-neutral">
+                        <div class="kpi-title">Programados Totales</div>
+                        <div class="kpi-value" id="kpi-total">0</div>
+                        <div class="kpi-subtitle">Planificados en el periodo</div>
+                    </div>
+                    <div class="kpi-card" id="card-semaforo-ejec">
+                        <div class="kpi-title">Eficiencia Ejecución</div>
+                        <div class="kpi-value" id="kpi-avance-pct">0%</div>
+                        <div class="kpi-subtitle" id="kpi-sub-ejec">0 Concluidos</div>
+                    </div>
+                    <div class="kpi-card" id="card-semaforo-tol">
+                        <div class="kpi-title">En Tolerancia</div>
+                        <div class="kpi-value" id="kpi-tol-pct">0%</div>
+                        <div class="kpi-subtitle" id="kpi-sub-tol">0 Prórrogas válidas</div>
+                    </div>
+                    <div class="kpi-card" id="card-semaforo-venc">
+                        <div class="kpi-title">Vencidos Operativos</div>
+                        <div class="kpi-value" id="kpi-venc-total">0</div>
+                        <div class="kpi-subtitle" id="kpi-sub-venc">Fuera de ventana</div>
+                    </div>
+                </div>
+
+                <div class="insights-card">
+                    <h4 style="color: var(--color-navy); margin-bottom: 6px;"><i class="fa-solid fa-list-check"></i> Diagnóstico Directivo Directo</h4>
+                    <p id="txt-insights">Evaluando métricas del archivo cargado...</p>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3 style="margin-bottom: 15px;"><i class="fa-solid fa-chart-bar"></i> Comparativa por Categoría de Maquinaria</h3>
+                        <div class="chart-container"><canvas id="chartExecutiveBar"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3 style="margin-bottom: 15px;"><i class="fa-solid fa-chart-pie"></i> Distribución General</h3>
+                        <div class="chart-container"><canvas id="chartExecutivePie"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 3: AUDITORÍA -->
+            <div id="view-table" class="tab-view">
+                <div class="table-card">
+                    <h3 style="margin-bottom: 20px;"><i class="fa-solid fa-database"></i> Datos de Gestión por Línea de Negocio</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tipo de Equipo</th>
+                                <th style="text-align: center;">Planificados</th>
+                                <th style="text-align: center;">Ejecutados</th>
+                                <th style="text-align: center;">Tolerancia</th>
+                                <th style="text-align: center;">Vencidos</th>
+                                <th style="text-align: center;">% Cumplimiento</th>
+                                <th style="text-align: center;">Semáforo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbl-body-operativo"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let instanceBar = null;
+        let instancePie = null;
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
+            
+            if(tabName === 'upload') {
+                document.querySelector('.sidebar-item:nth-child(1)').classList.add('active');
+                document.getElementById('view-upload').classList.add('active');
+            } else {
+                document.getElementById('menu-' + tabName).classList.add('active');
+                document.getElementById('view-' + tabName).classList.add('active');
+            }
+        }
+
+        const zone = document.getElementById('drop-zone');
+        const input = document.getElementById('file-input');
+
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('dragover'); if(e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]); });
+        input.addEventListener('change', (e) => { if(e.target.files.length) processFile(e.target.files[0]); });
+
+        function processFile(file) {
+            renderMessage('<i class="fa-solid fa-spinner fa-spin"></i> Leyendo estructura interna del libro Excel...', 'success');
+            const reader = new FileReader();
+            
+            // Forzar lectura binaria tolerante a fallos
+            reader.readAsArrayBuffer(file);
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array', cellDates:true, cellStyles:true});
+                    
+                    if(!workbook || !workbook.SheetNames.length) {
+                        throw new Error("El archivo está vacío o dañado.");
+                    }
+
+                    // ESTRATEGIA RESILIENTE: Buscar la pestaña de resumen, si falla usar la primera que tenga datos
+                    let targetSheetName = workbook.SheetNames.find(n => {
+                        let low = n.toLowerCase().trim();
+                        return low.includes('resum') || low.includes('mayo') || low.includes('05-26');
+                    }) || workbook.SheetNames[0];
+
+                    const sheet = workbook.Sheets[targetSheetName];
+                    // Convertir a matriz bidimensional nativa para no depender de encabezados estrictos
+                    const matrix = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: ""});
+                    
+                    analyzeMatrixData(matrix, targetSheetName);
+                } catch (err) {
+                    renderMessage('❌ <strong>Error de lectura:</strong> El archivo no pudo procesarse de forma automatizada. Asegúrate de que no esté protegido por contraseña o guardado como formato corrupto.', 'error');
+                }
+            };
+        }
+
+        function renderMessage(txt, type) {
+            const box = document.getElementById('upload-status');
+            box.className = `status-message ${type}`;
+            box.innerHTML = txt;
+            box.style.display = 'block';
+        }
+
+        function analyzeMatrixData(matrix, sheetName) {
+            let dataset = [];
+            let rIdx = -1, cTipo = -1, cPlan = -1, cEjec = -1, cTol = -1, cVenc = -1;
+
+            // Escaneo integral de celdas para ubicar la tabla donde sea que se encuentre desplazada
+            for(let i = 0; i < matrix.length; i++) {
+                let row = matrix[i];
+                if(!row) continue;
+                for(let j = 0; j < row.length; j++) {
+                    let val = String(row[j]).toLowerCase().trim();
+                    if(val.includes('tipo eq') || val.includes('equipo')) { cTipo = j; rIdx = i; }
+                    if(val.includes('plan./emer') || val.includes('plan/emer') || val.includes('planific')) cPlan = j;
+                    if(val.includes('ejecutado')) cEjec = j;
+                    if(val.includes('tolerancia')) cTol = j;
+                    if(val.includes('vencido')) cVenc = j;
+                }
+                if(rIdx !== -1 && cPlan !== -1 && cEjec !== -1) break;
+            }
+
+            // Fallback robusto en caso de que las cabeceras estén vacías o alteradas
+            if(cTipo === -1) { cTipo = 4; cPlan = 5; cEjec = 6; cTol = 7; cVenc = 8; rIdx = 5; }
+
+            let tPlan = 0, tEjec = 0, tTol = 0, tVenc = 0;
+            let startRow = rIdx !== -1 ? rIdx + 1 : 0;
+
+            for(let i = startRow; i < matrix.length; i++) {
+                let row = matrix[i];
+                if(!row || row[cTipo] === undefined || String(row[cTipo]).trim() === "") continue;
+
+                let eqName = String(row[cTipo]).trim();
+                let eqNameLow = eqName.toLowerCase();
+
+                // Parar si llegamos a la fila consolidada de totales del Excel
+                if(eqNameLow.includes('total')) {
+                    tPlan = parseInt(row[cPlan]) || tPlan;
+                    tEjec = parseInt(row[cEjec]) || tEjec;
+                    tTol = parseInt(row[cTol]) || tTol;
+                    tVenc = parseInt(row[cVenc]) || tVenc;
+                    break;
+                }
+
+                // Filtrado por coincidencia de flota o familias de maquinaria pesada/plantas
+                if(eqNameLow.includes('planta') || eqNameLow.includes('olla') || 
+                   eqNameLow.includes('bomba') || eqNameLow.includes('trascabo') || 
+                   eqNameLow.includes('retro') || eqNameLow.includes('auxiliar') ||
+                   eqNameLow.includes('unidad') || eqNameLow.includes('equipo')) {
+
+                    let p = parseInt(row[cPlan]) || 0;
+                    let e = parseInt(row[cEjec]) || 0;
+                    let t = parseInt(row[cTol]) || 0;
+                    let v = parseInt(row[cVenc]) || 0;
+                    let pct = p > 0 ? ((e / p) * 100).toFixed(0) : 0;
+
+                    dataset.push({ tipo: eqName, plan: p, ejec: e, tol: t, venc: v, pct: pct });
+                }
+            }
+
+            // Si los totales dieron cero o no se leyó la palabra "Total", consolidar sumando la lista limpia
+            if(tPlan === 0) {
+                dataset.forEach(x => { tPlan += x.plan; tEjec += x.ejec; tTol += x.tol; tVenc += x.venc; });
+            }
+
+            if(dataset.length === 0) {
+                renderMessage('❌ <strong>Formato no reconocido:</strong> Se abrió la pestaña pero no se localizaron las columnas de datos operativos. Verifica que existan valores bajo las cabeceras estándar.', 'error');
+                return;
+            }
+
+            // Renderizar KPIs Ejecutivos principales
+            document.getElementById('kpi-total').innerText = tPlan;
+            let pAvance = tPlan > 0 ? ((tEjec / tPlan) * 100).toFixed(1) : 0;
+            let pTol = tPlan > 0 ? ((tTol / tPlan) * 100).toFixed(1) : 0;
+
+            document.getElementById('kpi-avance-pct').innerText = `${pAvance}%`;
+            document.getElementById('kpi-sub-ejec').innerText = `${tEjec} Completados de manera efectiva`;
+
+            document.getElementById('kpi-tol-pct').innerText = `${pTol}%`;
+            document.getElementById('kpi-sub-tol').innerText = `${tTol} Equipos protegidos en ventana`;
+
+            document.getElementById('kpi-venc-total').innerText = tVenc;
+            document.getElementById('kpi-sub-venc').innerText = `${tVenc} Fuera de norma técnica`;
+
+            // Semáforos condicionales rápidos basados en metas operativas corporativas
+            document.getElementById('card-semaforo-ejec').className = 'kpi-card ' + (pAvance >= 90 ? 'status-success' : (pAvance >= 75 ? 'status-warning' : 'status-danger'));
+            document.getElementById('card-semaforo-tol').className = 'kpi-card ' + (tTol > 0 ? 'status-warning' : 'status-success');
+            document.getElementById('card-semaforo-venc').className = 'kpi-card ' + (tVenc > 0 ? 'status-danger' : 'status-success');
+
+            // Actualizar textos de cabecera corporativa
+            document.getElementById('txt-periodo-titulo').innerText = `Dashboard Directivo: Hoja ${sheetName.toUpperCase()}`;
+            document.getElementById('lbl-periodo-actual').innerHTML = `<i class="fa-solid fa-circle-check"></i> Origen: ${sheetName}`;
+
+            // Redacción dinámica del análisis de la situación actual
+            let textoAnalisis = "";
+            if(tVenc > 0) {
+                textoAnalisis = `⚠️ <strong>Atención Crítica:</strong> Existen <strong>${tVenc} mantenimientos vencidos fuera de ventana</strong>. Esto representa un riesgo operativo directo en la disponibilidad de los equipos. El porcentaje de avance actual es del <strong>${pAvance}%</strong>.`;
+            } else if (pAvance >= 90) {
+                textoAnalisis = `✅ <strong>Estatus Concluido:</strong> Operación bajo control absoluto. Se alcanzó un <strong>${pAvance}%</strong> de cumplimiento del programa mensual, manteniendo el remanente resguardado en periodos de tolerancia autorizados.`;
+            } else {
+                textoAnalisis = `📊 <strong>Control Preventivo Estable:</strong> Avance global en <strong>${pAvance}%</strong>. No se registran desviaciones críticas vencidas, pero se recomienda dar seguimiento al <strong>${pTol}%</strong> de los equipos posicionados en margen de prórroga.`;
+            }
+            document.getElementById('txt-insights').innerHTML = textoAnalisis;
+
+            // Llenado de filas de la tabla de control
+            const tbody = document.getElementById('tbl-body-operativo');
+            tbody.innerHTML = '';
+            dataset.forEach(d => {
+                let badgeStyle = 'pill-success'; let badgeText = 'Al día';
+                if(d.venc > 0) { badgeStyle = 'pill-danger'; badgeText = 'Crítico Vencido'; }
+                else if(d.tol > 0) { badgeStyle = 'pill-warning'; badgeText = 'En Tolerancia'; }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${d.tipo}</strong></td>
+                        <td style="text-align: center; font-weight: 600;">${d.plan}</td>
+                        <td style="text-align: center; color: var(--color-success); font-weight: 600;">${d.ejec}</td>
+                        <td style="text-align: center; color: var(--color-warning); font-weight: 600;">${d.tol}</td>
+                        <td style="text-align: center; color: var(--color-danger); font-weight: 600;">${d.venc}</td>
+                        <td style="text-align: center; font-weight: 700;">${d.pct}%</td>
+                        <td style="text-align: center;"><span class="pill ${badgeStyle}">${badgeText}</span></td>
+                    </tr>
+                `;
+            });
+
+            // Generación de gráficas
+            buildCharts(dataset, [tEjec, tTol, tVenc]);
+
+            // Transición limpia de pantallas sin parpadeos
+            document.getElementById('view-upload').classList.remove('active');
+            document.getElementById('dashboard-wrapper').style.display = 'block';
+            document.getElementById('view-executive').classList.add('active');
+            document.getElementById('menu-executive').classList.add('active');
+            renderMessage('✔ Reporte consolidado y estructurado con éxito.', 'success');
+        }
+
+        function buildCharts(datos, totales) {
+            if(instanceBar) instanceBar.destroy();
+            if(instancePie) instancePie.destroy();
+
+            const labels = datos.map(x => x.tipo);
+            const planes = datos.map(x => x.plan);
+            const ejecs = datos.map(x => x.ejec);
+
+            const ctxBar = document.getElementById('chartExecutiveBar').getContext('2d');
+            instanceBar = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Planificados', data: planes, backgroundColor: '#64748b', borderRadius: 4 },
+                        { label: 'Ejecutados', data: ejecs, backgroundColor: '#10b981', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
+                    scales: { y: { grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+                }
+            });
+
+            const ctxPie = document.getElementById('chartExecutivePie').getContext('2d');
+            instancePie = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ejecutados', 'En Tolerancia', 'Vencidos'],
+                    datasets: [{ data: totales, backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], borderWidth: 2 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+            });
+        }
+    </script>
+</body>
+</html>
