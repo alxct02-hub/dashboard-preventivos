@@ -2,15 +2,27 @@ let chartBarInstance = null;
 let chartPieInstance = null;
 
 function renderExecutiveCharts(dataset, totalsArray) {
-    if(chartBarInstance) chartBarInstance.destroy();
-    if(chartPieInstance) chartPieInstance.destroy();
+    const canvasBar = document.getElementById('chartExecutiveBar');
+    const canvasPie = document.getElementById('chartExecutivePie');
+
+    // Evita que el script truene si los canvas aún no se pintan en el DOM
+    if (!canvasBar || !canvasPie) {
+        console.error("Error: No se encontraron los elementos canvas para inicializar los gráficos.");
+        return;
+    }
+
+    // Asegurar que el array de totales contenga números válidos para Chart.js
+    const safeTotals = totalsArray.map(val => isNaN(parseInt(val)) ? 0 : parseInt(val));
+
+    if (chartBarInstance) chartBarInstance.destroy();
+    if (chartPieInstance) chartPieInstance.destroy();
 
     const labels = dataset.map(x => x.tipo);
     const planData = dataset.map(x => x.plan);
     const ejecData = dataset.map(x => x.ejec);
 
-    // 1. Gráfica de Cumplimiento por Categorías
-    const ctxBar = document.getElementById('chartExecutiveBar').getContext('2d');
+    // 1. Gráfico de Barras Comparativo
+    const ctxBar = canvasBar.getContext('2d');
     chartBarInstance = new Chart(ctxBar, {
         type: 'bar',
         data: {
@@ -28,13 +40,13 @@ function renderExecutiveCharts(dataset, totalsArray) {
         }
     });
 
-    // 2. Gráfica de Estatus General de Distribución del Mes
-    const ctxPie = document.getElementById('chartExecutivePie').getContext('2d');
+    // 2. Gráfico de Dona de Distribución
+    const ctxPie = canvasPie.getContext('2d');
     chartPieInstance = new Chart(ctxPie, {
         type: 'doughnut',
         data: {
             labels: ['Ejecutados', 'En Tolerancia', 'Vencidos'],
-            datasets: [{ data: totalsArray, backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], borderWidth: 2 }]
+            datasets: [{ data: safeTotals, backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], borderWidth: 2 }]
         },
         options: {
             responsive: true,
