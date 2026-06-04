@@ -1,77 +1,110 @@
 /*
 ==========================================
-PROCON DASHBOARD V3.0
+PROCON DASHBOARD V4.0
 EXCEL PARSER
 ==========================================
 */
 
 let GLOBAL_DATA = [];
 
-function parseExcelMatrix(matrix, sheetName) {
+function parseExcelMatrix(matrix, sheetName){
 
     const result = {
+
         registros: [],
+
         meses: [],
+
         anios: [],
+
         servicios: [],
+
         ubicaciones: {},
+
         talleres: {},
+
         tiposEquipo: {},
+
         serviciosResumen: {}
+
     };
 
-    if (!matrix || matrix.length === 0) {
+    if(
+        !matrix ||
+        matrix.length < 3
+    ){
         return result;
     }
 
-    const headerRow = findHeaderRow(matrix);
+    /*
+    ==========================================
+    ESTRUCTURA FIJA DEL EXCEL
+    ==========================================
 
-    if (headerRow === -1) {
-        throw new Error(
-            "No se localizaron encabezados válidos."
-        );
-    }
+    A = Mes
+    B = Año
+    C = Ubicación
+    D = N°
+    E = Tipo
+    F = Tipo mtto
+    G = Hr/Km planificado
+    H = Registro
+    I = Estatus
+    J = Taller
 
-    const headers = matrix[headerRow].map(h =>
-        String(h || "").trim().toUpperCase()
-    );
+    Encabezado = fila 2
+    Datos = fila 3+
+    */
 
-    const cols = detectColumns(headers);
+    const COL_MES = 0;
+    const COL_ANIO = 1;
+    const COL_UBICACION = 2;
+    const COL_UNIDAD = 3;
+    const COL_TIPO = 4;
+    const COL_SERVICIO = 5;
+    const COL_TALLER = 9;
 
-    if (!cols.unidad || !cols.tipo || !cols.servicio) {
-        throw new Error(
-            "No se localizaron las columnas requeridas."
-        );
-    }
-
-    for (let i = headerRow + 1; i < matrix.length; i++) {
+    for(
+        let i = 2;
+        i < matrix.length;
+        i++
+    ){
 
         const row = matrix[i];
 
-        if (!row || row.length === 0) continue;
+        if(
+            !row ||
+            row.length === 0
+        ){
+            continue;
+        }
 
         const unidad =
             String(
-                row[cols.unidad] || ""
+                row[COL_UNIDAD] || ""
             ).trim();
 
-        if (unidad === "") continue;
+        if(
+            unidad === ""
+        ){
+            continue;
+        }
 
         const registro = {
 
             mes:
                 cleanValue(
-                    row[cols.mes]
+                    row[COL_MES]
                 ),
 
             anio:
                 cleanValue(
-                    row[cols.anio]
+                    row[COL_ANIO]
                 ),
 
             ubicacion:
                 cleanValue(
-                    row[cols.ubicacion]
+                    row[COL_UBICACION]
                 ),
 
             unidad:
@@ -79,17 +112,17 @@ function parseExcelMatrix(matrix, sheetName) {
 
             tipo:
                 cleanValue(
-                    row[cols.tipo]
+                    row[COL_TIPO]
                 ),
 
             servicio:
                 cleanValue(
-                    row[cols.servicio]
+                    row[COL_SERVICIO]
                 ),
 
             taller:
                 cleanValue(
-                    row[cols.taller]
+                    row[COL_TALLER]
                 )
 
         };
@@ -100,188 +133,105 @@ function parseExcelMatrix(matrix, sheetName) {
                 registro.servicio
             );
 
-        result.registros.push(registro);
+        result.registros.push(
+            registro
+        );
+
     }
 
-    GLOBAL_DATA = result.registros;
+    GLOBAL_DATA =
+        result.registros;
 
     buildStatistics(
         result
     );
 
     return result;
+
 }
 
 /*
 ==========================================
-BUSCAR ENCABEZADOS
+LIMPIEZA
 ==========================================
 */
 
-function findHeaderRow(matrix) {
+function cleanValue(value){
 
-    for (let i = 0; i < 20; i++) {
-
-        const row = matrix[i];
-
-        if (!row) continue;
-
-        const text = row.join(" ")
-            .toUpperCase();
-
-        if (
-            text.includes("MES") &&
-            text.includes("AÑO")
-        ) {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-/*
-==========================================
-DETECTAR COLUMNAS
-==========================================
-*/
-
-function detectColumns(headers) {
-
-    const cols = {};
-
-    headers.forEach((h, index) => {
-
-        if (
-            h.includes("MES")
-        ) {
-            cols.mes = index;
-        }
-
-        if (
-            h.includes("AÑO")
-        ) {
-            cols.anio = index;
-        }
-
-        if (
-            h.includes("UBIC")
-        ) {
-            cols.ubicacion = index;
-        }
-
-        if (
-            h === "N°" ||
-            h === "NO" ||
-            h.includes("UNIDAD")
-        ) {
-            cols.unidad = index;
-        }
-
-        if (
-            h === "TIPO"
-        ) {
-            cols.tipo = index;
-        }
-
-        if (
-            h.includes("TIPO MTTO") ||
-            h.includes("SERVICIO") ||
-            h.includes("MANTENIMIENTO")
-        ) {
-            cols.servicio = index;
-        }
-
-        if (
-            h.includes("TALLER")
-        ) {
-            cols.taller = index;
-        }
-
-    });
-
-    return cols;
-}
-
-/*
-==========================================
-LIMPIAR DATOS
-==========================================
-*/
-
-function cleanValue(value) {
-
-    if (
-        value === undefined ||
-        value === null
-    ) {
+    if(
+        value === null ||
+        value === undefined
+    ){
         return "";
     }
 
     return String(value)
         .trim()
         .toUpperCase();
+
 }
 
 /*
 ==========================================
-CLASIFICACION EQUIPOS
+CLASIFICACION
 ==========================================
 */
 
 function clasificarEquipo(
     tipo,
     servicio
-) {
+){
 
-    const value =
+    const t =
         String(tipo || "")
         .toUpperCase();
 
-    if (
-        servicio &&
-        String(servicio)
-        .toUpperCase()
-        .includes("MODULO")
-    ) {
+    const s =
+        String(servicio || "")
+        .toUpperCase();
+
+    if(
+        s.includes("MODULO")
+    ){
         return "SISTEMA BOMBEO";
     }
 
-    if (
-        value.startsWith("R")
-    ) {
+    if(
+        t.startsWith("R")
+    ){
         return "OLLA";
     }
 
-    if (
-        value.startsWith("P")
-    ) {
+    if(
+        t.startsWith("P")
+    ){
         return "PLANTA";
     }
 
-    if (
-        value.startsWith("B")
-    ) {
+    if(
+        t.startsWith("B")
+    ){
         return "BOMBA";
     }
 
-    if (
-        value.startsWith("T")
-    ) {
+    if(
+        t.startsWith("T")
+    ){
         return "TRASCABO";
     }
 
-    if (
-        value.startsWith("E")
-    ) {
+    if(
+        t.startsWith("E")
+    ){
         return "EXCAVADORA";
     }
 
     return "OTROS";
+
 }
 /*
 ==========================================
-CONSTRUIR ESTADISTICAS
+ESTADISTICAS GENERALES
 ==========================================
 */
 
@@ -297,9 +247,13 @@ function buildStatistics(result){
 
         if(
             reg.mes &&
-            !result.meses.includes(reg.mes)
+            !result.meses.includes(
+                reg.mes
+            )
         ){
-            result.meses.push(reg.mes);
+            result.meses.push(
+                reg.mes
+            );
         }
 
         /*
@@ -310,9 +264,13 @@ function buildStatistics(result){
 
         if(
             reg.anio &&
-            !result.anios.includes(reg.anio)
+            !result.anios.includes(
+                reg.anio
+            )
         ){
-            result.anios.push(reg.anio);
+            result.anios.push(
+                reg.anio
+            );
         }
 
         /*
@@ -323,9 +281,13 @@ function buildStatistics(result){
 
         if(
             reg.servicio &&
-            !result.servicios.includes(reg.servicio)
+            !result.servicios.includes(
+                reg.servicio
+            )
         ){
-            result.servicios.push(reg.servicio);
+            result.servicios.push(
+                reg.servicio
+            );
         }
 
         /*
@@ -334,11 +296,19 @@ function buildStatistics(result){
         =====================
         */
 
-        if(!result.ubicaciones[reg.ubicacion]){
-            result.ubicaciones[reg.ubicacion] = 0;
+        if(
+            !result.ubicaciones[
+                reg.ubicacion
+            ]
+        ){
+            result.ubicaciones[
+                reg.ubicacion
+            ] = 0;
         }
 
-        result.ubicaciones[reg.ubicacion]++;
+        result.ubicaciones[
+            reg.ubicacion
+        ]++;
 
         /*
         =====================
@@ -346,11 +316,19 @@ function buildStatistics(result){
         =====================
         */
 
-        if(!result.talleres[reg.taller]){
-            result.talleres[reg.taller] = 0;
+        if(
+            !result.talleres[
+                reg.taller
+            ]
+        ){
+            result.talleres[
+                reg.taller
+            ] = 0;
         }
 
-        result.talleres[reg.taller]++;
+        result.talleres[
+            reg.taller
+        ]++;
 
         /*
         =====================
@@ -358,28 +336,46 @@ function buildStatistics(result){
         =====================
         */
 
-        if(!result.tiposEquipo[reg.clasificacion]){
-            result.tiposEquipo[reg.clasificacion] = 0;
+        if(
+            !result.tiposEquipo[
+                reg.clasificacion
+            ]
+        ){
+            result.tiposEquipo[
+                reg.clasificacion
+            ] = 0;
         }
 
-        result.tiposEquipo[reg.clasificacion]++;
+        result.tiposEquipo[
+            reg.clasificacion
+        ]++;
 
         /*
         =====================
-        SERVICIOS
+        SERVICIOS RESUMEN
         =====================
         */
 
-        if(!result.serviciosResumen[reg.servicio]){
-            result.serviciosResumen[reg.servicio] = 0;
+        if(
+            !result.serviciosResumen[
+                reg.servicio
+            ]
+        ){
+            result.serviciosResumen[
+                reg.servicio
+            ] = 0;
         }
 
-        result.serviciosResumen[reg.servicio]++;
+        result.serviciosResumen[
+            reg.servicio
+        ]++;
 
     });
 
     result.meses.sort();
+
     result.anios.sort();
+
 }
 
 /*
@@ -396,7 +392,7 @@ function getTotalRegistros(){
 
 /*
 ==========================================
-SERVICIO MAS FRECUENTE
+SERVICIO PRINCIPAL
 ==========================================
 */
 
@@ -404,25 +400,40 @@ function getServicioPrincipal(){
 
     const contador = {};
 
-    GLOBAL_DATA.forEach(r => {
+    GLOBAL_DATA.forEach(reg => {
 
-        if(!contador[r.servicio]){
-            contador[r.servicio] = 0;
+        if(
+            !contador[
+                reg.servicio
+            ]
+        ){
+            contador[
+                reg.servicio
+            ] = 0;
         }
 
-        contador[r.servicio]++;
+        contador[
+            reg.servicio
+        ]++;
 
     });
 
     let mayor = 0;
+
     let servicio = "-";
 
-    Object.keys(contador).forEach(key => {
+    Object.keys(contador)
+    .forEach(key => {
 
-        if(contador[key] > mayor){
+        if(
+            contador[key] > mayor
+        ){
 
-            mayor = contador[key];
-            servicio = key;
+            mayor =
+                contador[key];
+
+            servicio =
+                key;
 
         }
 
@@ -442,25 +453,40 @@ function getUbicacionPrincipal(){
 
     const contador = {};
 
-    GLOBAL_DATA.forEach(r => {
+    GLOBAL_DATA.forEach(reg => {
 
-        if(!contador[r.ubicacion]){
-            contador[r.ubicacion] = 0;
+        if(
+            !contador[
+                reg.ubicacion
+            ]
+        ){
+            contador[
+                reg.ubicacion
+            ] = 0;
         }
 
-        contador[r.ubicacion]++;
+        contador[
+            reg.ubicacion
+        ]++;
 
     });
 
     let mayor = 0;
+
     let ubicacion = "-";
 
-    Object.keys(contador).forEach(key => {
+    Object.keys(contador)
+    .forEach(key => {
 
-        if(contador[key] > mayor){
+        if(
+            contador[key] > mayor
+        ){
 
-            mayor = contador[key];
-            ubicacion = key;
+            mayor =
+                contador[key];
+
+            ubicacion =
+                key;
 
         }
 
@@ -480,25 +506,40 @@ function getTallerPrincipal(){
 
     const contador = {};
 
-    GLOBAL_DATA.forEach(r => {
+    GLOBAL_DATA.forEach(reg => {
 
-        if(!contador[r.taller]){
-            contador[r.taller] = 0;
+        if(
+            !contador[
+                reg.taller
+            ]
+        ){
+            contador[
+                reg.taller
+            ] = 0;
         }
 
-        contador[r.taller]++;
+        contador[
+            reg.taller
+        ]++;
 
     });
 
     let mayor = 0;
+
     let taller = "-";
 
-    Object.keys(contador).forEach(key => {
+    Object.keys(contador)
+    .forEach(key => {
 
-        if(contador[key] > mayor){
+        if(
+            contador[key] > mayor
+        ){
 
-            mayor = contador[key];
-            taller = key;
+            mayor =
+                contador[key];
+
+            taller =
+                key;
 
         }
 
@@ -510,39 +551,56 @@ function getTallerPrincipal(){
 
 /*
 ==========================================
-PORCENTAJES SERVICIO
+PORCENTAJES SERVICIOS
 ==========================================
 */
 
 function getServiciosPorcentaje(){
 
-    const total = GLOBAL_DATA.length;
+    const total =
+        GLOBAL_DATA.length;
 
-    const servicios = {};
+    const resumen = {};
 
     GLOBAL_DATA.forEach(reg => {
 
-        if(!servicios[reg.servicio]){
-            servicios[reg.servicio] = 0;
+        if(
+            !resumen[
+                reg.servicio
+            ]
+        ){
+            resumen[
+                reg.servicio
+            ] = 0;
         }
 
-        servicios[reg.servicio]++;
+        resumen[
+            reg.servicio
+        ]++;
 
     });
 
     const resultado = [];
 
-    Object.keys(servicios).forEach(servicio => {
+    Object.keys(resumen)
+    .forEach(servicio => {
 
         resultado.push({
 
-            servicio: servicio,
+            servicio:
+                servicio,
 
-            cantidad: servicios[servicio],
+            cantidad:
+                resumen[
+                    servicio
+                ],
 
             porcentaje:
+
                 (
-                    servicios[servicio]
+                    resumen[
+                        servicio
+                    ]
                     /
                     total
                 ) * 100
@@ -553,7 +611,8 @@ function getServiciosPorcentaje(){
 
     resultado.sort(
         (a,b) =>
-            b.cantidad - a.cantidad
+            b.cantidad -
+            a.cantidad
     );
 
     return resultado;
@@ -561,7 +620,7 @@ function getServiciosPorcentaje(){
 }
 /*
 ==========================================
-FILTRO GENERAL
+FILTROS
 ==========================================
 */
 
@@ -574,18 +633,15 @@ function filterData(
     return GLOBAL_DATA.filter(reg => {
 
         const cumpleMes =
-            mes === "TODOS"
-            ||
+            mes === "TODOS" ||
             reg.mes === mes;
 
         const cumpleAnio =
-            anio === "TODOS"
-            ||
+            anio === "TODOS" ||
             reg.anio === anio;
 
         const cumpleServicio =
-            servicio === "TODOS"
-            ||
+            servicio === "TODOS" ||
             reg.servicio === servicio;
 
         return (
@@ -600,20 +656,26 @@ function filterData(
 
 /*
 ==========================================
-CARGAR COMBOS FILTRO
+COMBOS FILTROS
 ==========================================
 */
 
 function populateFilters(data){
 
     const mesSelect =
-        document.getElementById("filterMes");
+        document.getElementById(
+            "filterMes"
+        );
 
     const anioSelect =
-        document.getElementById("filterAnio");
+        document.getElementById(
+            "filterAnio"
+        );
 
     const servicioSelect =
-        document.getElementById("filterServicio");
+        document.getElementById(
+            "filterServicio"
+        );
 
     if(
         !mesSelect ||
@@ -624,41 +686,38 @@ function populateFilters(data){
     }
 
     mesSelect.innerHTML =
-        `<option value="TODOS">Todos los meses</option>`;
+        `<option value="TODOS">Todos</option>`;
 
     anioSelect.innerHTML =
-        `<option value="TODOS">Todos los años</option>`;
+        `<option value="TODOS">Todos</option>`;
 
     servicioSelect.innerHTML =
-        `<option value="TODOS">Todos los servicios</option>`;
+        `<option value="TODOS">Todos</option>`;
 
     data.meses.forEach(mes => {
 
-        mesSelect.innerHTML += `
-            <option value="${mes}">
-                ${mes}
-            </option>
-        `;
+        mesSelect.innerHTML +=
+        `<option value="${mes}">
+            ${mes}
+        </option>`;
 
     });
 
     data.anios.forEach(anio => {
 
-        anioSelect.innerHTML += `
-            <option value="${anio}">
-                ${anio}
-            </option>
-        `;
+        anioSelect.innerHTML +=
+        `<option value="${anio}">
+            ${anio}
+        </option>`;
 
     });
 
     data.servicios.forEach(servicio => {
 
-        servicioSelect.innerHTML += `
-            <option value="${servicio}">
-                ${servicio}
-            </option>
-        `;
+        servicioSelect.innerHTML +=
+        `<option value="${servicio}">
+            ${servicio}
+        </option>`;
 
     });
 
@@ -666,7 +725,7 @@ function populateFilters(data){
 
 /*
 ==========================================
-SERVICIOS PARA CHART
+CHART SERVICIOS
 ==========================================
 */
 
@@ -676,19 +735,29 @@ function getChartServicios(data){
 
     data.forEach(reg => {
 
-        if(!resumen[reg.servicio]){
-            resumen[reg.servicio] = 0;
+        if(
+            !resumen[
+                reg.servicio
+            ]
+        ){
+            resumen[
+                reg.servicio
+            ] = 0;
         }
 
-        resumen[reg.servicio]++;
+        resumen[
+            reg.servicio
+        ]++;
 
     });
 
     return {
 
-        labels: Object.keys(resumen),
+        labels:
+            Object.keys(resumen),
 
-        values: Object.values(resumen)
+        values:
+            Object.values(resumen)
 
     };
 
@@ -696,7 +765,7 @@ function getChartServicios(data){
 
 /*
 ==========================================
-EQUIPOS PARA CHART
+CHART EQUIPOS
 ==========================================
 */
 
@@ -706,19 +775,29 @@ function getChartEquipos(data){
 
     data.forEach(reg => {
 
-        if(!resumen[reg.clasificacion]){
-            resumen[reg.clasificacion] = 0;
+        if(
+            !resumen[
+                reg.clasificacion
+            ]
+        ){
+            resumen[
+                reg.clasificacion
+            ] = 0;
         }
 
-        resumen[reg.clasificacion]++;
+        resumen[
+            reg.clasificacion
+        ]++;
 
     });
 
     return {
 
-        labels: Object.keys(resumen),
+        labels:
+            Object.keys(resumen),
 
-        values: Object.values(resumen)
+        values:
+            Object.values(resumen)
 
     };
 
@@ -726,7 +805,7 @@ function getChartEquipos(data){
 
 /*
 ==========================================
-UBICACIONES PARA CHART
+CHART UBICACIONES
 ==========================================
 */
 
@@ -736,19 +815,29 @@ function getChartUbicaciones(data){
 
     data.forEach(reg => {
 
-        if(!resumen[reg.ubicacion]){
-            resumen[reg.ubicacion] = 0;
+        if(
+            !resumen[
+                reg.ubicacion
+            ]
+        ){
+            resumen[
+                reg.ubicacion
+            ] = 0;
         }
 
-        resumen[reg.ubicacion]++;
+        resumen[
+            reg.ubicacion
+        ]++;
 
     });
 
     return {
 
-        labels: Object.keys(resumen),
+        labels:
+            Object.keys(resumen),
 
-        values: Object.values(resumen)
+        values:
+            Object.values(resumen)
 
     };
 
@@ -756,7 +845,7 @@ function getChartUbicaciones(data){
 
 /*
 ==========================================
-TALLERES PARA CHART
+CHART TALLERES
 ==========================================
 */
 
@@ -766,19 +855,29 @@ function getChartTalleres(data){
 
     data.forEach(reg => {
 
-        if(!resumen[reg.taller]){
-            resumen[reg.taller] = 0;
+        if(
+            !resumen[
+                reg.taller
+            ]
+        ){
+            resumen[
+                reg.taller
+            ] = 0;
         }
 
-        resumen[reg.taller]++;
+        resumen[
+            reg.taller
+        ]++;
 
     });
 
     return {
 
-        labels: Object.keys(resumen),
+        labels:
+            Object.keys(resumen),
 
-        values: Object.values(resumen)
+        values:
+            Object.values(resumen)
 
     };
 
@@ -807,11 +906,19 @@ function buildServiceTable(data){
 
     data.forEach(reg => {
 
-        if(!resumen[reg.servicio]){
-            resumen[reg.servicio] = 0;
+        if(
+            !resumen[
+                reg.servicio
+            ]
+        ){
+            resumen[
+                reg.servicio
+            ] = 0;
         }
 
-        resumen[reg.servicio]++;
+        resumen[
+            reg.servicio
+        ]++;
 
     });
 
@@ -830,17 +937,15 @@ function buildServiceTable(data){
 
         tabla.innerHTML += `
 
-            <tr>
+        <tr>
 
-                <td>${servicio}</td>
+            <td>${servicio}</td>
 
-                <td>${cantidad}</td>
+            <td>${cantidad}</td>
 
-                <td>
-                    ${porcentaje.toFixed(1)}%
-                </td>
+            <td>${porcentaje.toFixed(1)}%</td>
 
-            </tr>
+        </tr>
 
         `;
 
@@ -869,19 +974,19 @@ function buildProgramacionTable(data){
 
         tabla.innerHTML += `
 
-            <tr>
+        <tr>
 
-                <td>${reg.unidad}</td>
+            <td>${reg.unidad}</td>
 
-                <td>${reg.clasificacion}</td>
+            <td>${reg.clasificacion}</td>
 
-                <td>${reg.servicio}</td>
+            <td>${reg.servicio}</td>
 
-                <td>${reg.ubicacion}</td>
+            <td>${reg.ubicacion}</td>
 
-                <td>${reg.taller}</td>
+            <td>${reg.taller}</td>
 
-            </tr>
+        </tr>
 
         `;
 
@@ -891,7 +996,7 @@ function buildProgramacionTable(data){
 
 /*
 ==========================================
-KPIS EJECUTIVOS
+KPIs EJECUTIVOS
 ==========================================
 */
 
@@ -909,36 +1014,71 @@ function updateExecutiveKPIs(data){
     const talleres =
         getChartTalleres(data);
 
-    document.getElementById(
-        "kpi-total"
-    ).innerText = total;
+    const kpiTotal =
+        document.getElementById(
+            "kpi-total"
+        );
 
-    document.getElementById(
-        "kpi-servicio-principal"
-    ).innerText =
-        servicios.labels[
-            servicios.values.indexOf(
-                Math.max(...servicios.values)
-            )
-        ] || "-";
+    const kpiServicio =
+        document.getElementById(
+            "kpi-servicio-principal"
+        );
 
-    document.getElementById(
-        "kpi-ubicacion-principal"
-    ).innerText =
-        ubicaciones.labels[
-            ubicaciones.values.indexOf(
-                Math.max(...ubicaciones.values)
-            )
-        ] || "-";
+    const kpiUbicacion =
+        document.getElementById(
+            "kpi-ubicacion-principal"
+        );
 
-    document.getElementById(
-        "kpi-taller-principal"
-    ).innerText =
-        talleres.labels[
-            talleres.values.indexOf(
-                Math.max(...talleres.values)
-            )
-        ] || "-";
+    const kpiTaller =
+        document.getElementById(
+            "kpi-taller-principal"
+        );
+
+    if(kpiTotal){
+        kpiTotal.innerText = total;
+    }
+
+    if(
+        kpiServicio &&
+        servicios.values.length
+    ){
+        kpiServicio.innerText =
+            servicios.labels[
+                servicios.values.indexOf(
+                    Math.max(
+                        ...servicios.values
+                    )
+                )
+            ];
+    }
+
+    if(
+        kpiUbicacion &&
+        ubicaciones.values.length
+    ){
+        kpiUbicacion.innerText =
+            ubicaciones.labels[
+                ubicaciones.values.indexOf(
+                    Math.max(
+                        ...ubicaciones.values
+                    )
+                )
+            ];
+    }
+
+    if(
+        kpiTaller &&
+        talleres.values.length
+    ){
+        kpiTaller.innerText =
+            talleres.labels[
+                talleres.values.indexOf(
+                    Math.max(
+                        ...talleres.values
+                    )
+                )
+            ];
+    }
 
 }
 
@@ -978,6 +1118,11 @@ function applyFilters(){
 
     updateExecutiveKPIs(data);
 
-    renderAllCharts(data);
+    if(
+        typeof renderAllCharts ===
+        "function"
+    ){
+        renderAllCharts(data);
+    }
 
 }
