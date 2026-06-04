@@ -1,7 +1,7 @@
 /*
 ==========================================
 PROCON DASHBOARD V4.0
-EXCEL PARSER
+EXCEL PARSER - MEJORADO
 ==========================================
 */
 
@@ -39,34 +39,73 @@ function parseExcelMatrix(matrix, sheetName){
 
     /*
     ==========================================
-    ESTRUCTURA FIJA DEL EXCEL
+    DETECTAR COLUMNAS AUTOMÁTICAMENTE
     ==========================================
-
-    A = Mes
-    B = Año
-    C = Ubicación
-    D = N°
-    E = Tipo
-    F = Tipo mtto
-    G = Hr/Km planificado
-    H = Registro
-    I = Estatus
-    J = Taller
-
-    Encabezado = fila 1
-    Datos = fila 2+
     */
 
-    const COL_MES = 0;
-    const COL_ANIO = 1;
-    const COL_UBICACION = 2;
-    const COL_UNIDAD = 3;
-    const COL_TIPO = 4;
-    const COL_SERVICIO = 5;
-    const COL_TALLER = 9;
+    const headerRow = matrix[0];
+    console.log("Encabezados detectados:", headerRow);
 
-    console.log("Fila 1 (Encabezados):", matrix[0]);
+    // Normalizar encabezados para búsqueda
+    const normalizeHeader = (header) => {
+        return String(header || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[áàâä]/g, 'a')
+            .replace(/[éèêë]/g, 'e')
+            .replace(/[íìîï]/g, 'i')
+            .replace(/[óòôö]/g, 'o')
+            .replace(/[úùûü]/g, 'u')
+            .replace(/\s+/g, '');
+    };
 
+    // Buscar índices de columnas
+    let COL_MES = -1;
+    let COL_ANIO = -1;
+    let COL_UBICACION = -1;
+    let COL_UNIDAD = -1;
+    let COL_TIPO = -1;
+    let COL_SERVICIO = -1;
+    let COL_TALLER = -1;
+
+    headerRow.forEach((header, index) => {
+        const normalized = normalizeHeader(header);
+
+        if (normalized.includes('mes')) COL_MES = index;
+        if (normalized.includes('ao') || normalized.includes('anio')) COL_ANIO = index;
+        if (normalized.includes('ubicacion')) COL_UBICACION = index;
+        if (normalized.includes('n') && normalized.length <= 2) COL_UNIDAD = index;
+        if (normalized === 'tipo' && COL_SERVICIO === -1) COL_TIPO = index;
+        if (normalized.includes('mtto') || normalized.includes('mantenimiento')) COL_SERVICIO = index;
+        if (normalized.includes('taller')) COL_TALLER = index;
+    });
+
+    // Si no encontró "Tipo mtto", buscar "Tipo" que sea servicio
+    if (COL_SERVICIO === -1) {
+        headerRow.forEach((header, index) => {
+            if (normalizeHeader(header) === 'tipo') {
+                COL_SERVICIO = index;
+            }
+        });
+    }
+
+    console.log("Índices detectados:", {
+        COL_MES,
+        COL_ANIO,
+        COL_UBICACION,
+        COL_UNIDAD,
+        COL_TIPO,
+        COL_SERVICIO,
+        COL_TALLER
+    });
+
+    // Validar que se encontraron las columnas críticas
+    if (COL_MES === -1 || COL_ANIO === -1 || COL_UNIDAD === -1 || COL_SERVICIO === -1) {
+        console.error("No se encontraron todas las columnas requeridas");
+        return result;
+    }
+
+    // Procesar filas de datos (comenzando desde fila 2)
     for(
         let i = 1;
         i < matrix.length;
@@ -106,17 +145,17 @@ function parseExcelMatrix(matrix, sheetName){
                 ),
 
             ubicacion:
-                cleanValue(
-                    row[COL_UBICACION]
-                ),
+                COL_UBICACION !== -1 ?
+                cleanValue(row[COL_UBICACION]) :
+                "",
 
             unidad:
                 unidad,
 
             tipo:
-                cleanValue(
-                    row[COL_TIPO]
-                ),
+                COL_TIPO !== -1 ?
+                cleanValue(row[COL_TIPO]) :
+                "",
 
             servicio:
                 cleanValue(
@@ -124,9 +163,9 @@ function parseExcelMatrix(matrix, sheetName){
                 ),
 
             taller:
-                cleanValue(
-                    row[COL_TALLER]
-                )
+                COL_TALLER !== -1 ?
+                cleanValue(row[COL_TALLER]) :
+                ""
 
         };
 
@@ -143,6 +182,7 @@ function parseExcelMatrix(matrix, sheetName){
     }
 
     console.log("Registros procesados:", result.registros.length);
+    console.log("Primeros 3 registros:", result.registros.slice(0, 3));
 
     GLOBAL_DATA =
         result.registros;
@@ -234,6 +274,7 @@ function clasificarEquipo(
     return "OTROS";
 
 }
+
 /*
 ==========================================
 ESTADISTICAS GENERALES
