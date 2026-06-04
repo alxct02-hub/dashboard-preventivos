@@ -1,7 +1,7 @@
 /*
 ==========================================
 PROCON DASHBOARD V4.0
-EXCEL PARSER - MEJORADO v2
+EXCEL PARSER - MEJORADO v3
 ==========================================
 */
 
@@ -46,34 +46,46 @@ function parseExcelMatrix(matrix, sheetName){
     let headerRowIndex = -1;
     let headerRow = null;
 
-    // Buscar la fila que contiene los encabezados
-    // Buscamos una fila que tenga "Mes" o "MANTENIMIENTOS" como primer indicativo
-    for (let i = 0; i < Math.min(5, matrix.length); i++) {
+    // Buscar la fila que contiene los encabezados reales
+    // Ignorar filas de título como "MANTENIMIENTOS PREVENTIVOS"
+    for (let i = 0; i < Math.min(10, matrix.length); i++) {
         const row = matrix[i];
         if (!row || row.length === 0) continue;
+
+        // Ignorar filas que son solo títulos (una sola celda con contenido)
+        const nonEmptyCells = row.filter(cell => 
+            String(cell || "").trim() !== ""
+        );
+        
+        // Si la fila tiene menos de 4 celdas no vacías, probablemente es un título
+        if (nonEmptyCells.length < 4) {
+            console.log(`Fila ${i} descartada (parece ser título): ${row[0]}`);
+            continue;
+        }
 
         const rowContent = row.map(cell => 
             String(cell || "").trim().toUpperCase()
         ).join(" ");
 
         // Detectar si esta es la fila de encabezados
+        // Buscar palabras clave que indican que es una fila de encabezados
         if (
             rowContent.includes("MES") ||
-            rowContent.includes("MANTENIMIENTO") ||
-            (rowContent.includes("AÑO") && rowContent.includes("UBICACION"))
+            (rowContent.includes("AÑO") && rowContent.includes("UBICACION")) ||
+            (rowContent.includes("TIPO") && rowContent.includes("TALLER"))
         ) {
             headerRowIndex = i;
             headerRow = row;
-            console.log(`Fila de encabezados encontrada en índice: ${i}`);
+            console.log(`✓ Fila de encabezados encontrada en índice: ${i}`);
+            console.log(`Contenido: ${rowContent}`);
             break;
         }
     }
 
-    // Si no encontró, usar la primera fila
+    // Si no encontró, retornar error
     if (headerRowIndex === -1) {
-        headerRowIndex = 0;
-        headerRow = matrix[0];
-        console.log("Usando primera fila como encabezados");
+        console.error("No se encontró fila de encabezados válida");
+        return result;
     }
 
     console.log("Encabezados detectados:", headerRow);
@@ -109,15 +121,34 @@ function parseExcelMatrix(matrix, sheetName){
 
     headerRow.forEach((header, index) => {
         const normalized = normalizeHeader(header);
-        console.log(`Columna ${index}: "${header}" -> normalizado: "${normalized}"`);
+        const original = String(header || "").trim();
+        
+        console.log(`Columna ${index}: "${original}" -> "${normalized}"`);
 
-        if (normalized.includes('mes')) COL_MES = index;
-        if (normalized.includes('ano') || normalized.includes('anio')) COL_ANIO = index;
-        if (normalized.includes('ubicacion')) COL_UBICACION = index;
-        if (normalized === 'n' || normalized === 'n') COL_UNIDAD = index;
-        if (normalized === 'tipo' && COL_SERVICIO === -1) COL_TIPO = index;
-        if (normalized.includes('mtto') || normalized.includes('mantenimiento')) COL_SERVICIO = index;
-        if (normalized.includes('taller')) COL_TALLER = index;
+        if (normalized.includes('mes')) {
+            COL_MES = index;
+            console.log(`  ✓ COL_MES = ${index}`);
+        }
+        if (normalized.includes('ano') || normalized.includes('anio')) {
+            COL_ANIO = index;
+            console.log(`  ✓ COL_ANIO = ${index}`);
+        }
+        if (normalized.includes('ubicacion')) {
+            COL_UBICACION = index;
+            console.log(`  ✓ COL_UBICACION = ${index}`);
+        }
+        if (normalized === 'n' || normalized === 'n' || normalized.match(/^n[°º]?$/)) {
+            COL_UNIDAD = index;
+            console.log(`  ✓ COL_UNIDAD = ${index}`);
+        }
+        if (normalized.includes('mtto') || normalized.includes('mantenimiento')) {
+            COL_SERVICIO = index;
+            console.log(`  ✓ COL_SERVICIO = ${index}`);
+        }
+        if (normalized.includes('taller')) {
+            COL_TALLER = index;
+            console.log(`  ✓ COL_TALLER = ${index}`);
+        }
     });
 
     // Si no encontró "Tipo mtto", buscar "Tipo" que sea servicio
@@ -126,11 +157,21 @@ function parseExcelMatrix(matrix, sheetName){
             const normalized = normalizeHeader(header);
             if (normalized === 'tipo') {
                 COL_SERVICIO = index;
+                console.log(`Asignando columna ${index} como Servicio (Tipo)`);
             }
         });
     }
 
-    // Si no encontró N°, buscar columna 3 (posición típica)
+    // Si no encontró "Tipo" como columna separada, buscar en posición esperada
+    if (COL_TIPO === -1 && headerRow.length > 4) {
+        const norm4 = normalizeHeader(headerRow[4]);
+        if (norm4.includes('tipo')) {
+            COL_TIPO = 4;
+            console.log(`Asignando columna 4 como Tipo`);
+        }
+    }
+
+    // Si no encontró N°, usar columna 3 (posición típica)
     if (COL_UNIDAD === -1 && headerRow.length > 3) {
         COL_UNIDAD = 3;
         console.log("Asignando columna 3 como Unidad (N°)");
@@ -159,6 +200,7 @@ function parseExcelMatrix(matrix, sheetName){
 
     // Procesar filas de datos (comenzando desde la siguiente fila después de encabezados)
     const dataStartIndex = headerRowIndex + 1;
+    console.log(`Procesando datos desde fila ${dataStartIndex}`);
     
     for(
         let i = dataStartIndex;
@@ -236,9 +278,11 @@ function parseExcelMatrix(matrix, sheetName){
 
     }
 
-    console.log("Registros procesados:", result.registros.length);
+    console.log("✓ Registros procesados:", result.registros.length);
     if (result.registros.length > 0) {
         console.log("Primeros 3 registros:", result.registros.slice(0, 3));
+    } else {
+        console.warn("⚠ No se procesaron registros");
     }
 
     GLOBAL_DATA =
