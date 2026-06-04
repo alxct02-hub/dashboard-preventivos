@@ -1,184 +1,479 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Control - Mantenimiento Preventivo</title>
+
+    <title>Dashboard Ejecutivo de Preventivos</title>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <link rel="stylesheet" href="css/styles.css">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 </head>
+
 <body>
 
-    <div class="app-container">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <i class="fa-solid fa-screwdriver-wrench"></i>
-                <h2>PROCON</h2>
-                <span class="tag-version">v2.1</span>
-            </div>
-            <ul class="sidebar-menu">
-                <li class="sidebar-item active" data-tab="upload-tab">
-                    <i class="fa-solid fa-file-upload"></i> Cargar Reporte
-                </li>
-                <li class="sidebar-item disabled" id="menu-dashboard" data-tab="dashboard-tab">
-                    <i class="fa-solid fa-chart-pie"></i> Vista Ejecutiva
-                </li>
-                <li class="sidebar-item disabled" id="menu-distribucion" data-tab="distribucion-tab">
-                    <i class="fa-solid fa-boxes-stacked"></i> Distribución Operativa
-                </li>
-            </ul>
-            <div class="sidebar-footer">
-                <p id="lbl-periodo-actual"><i class="fa-solid fa-clock"></i> Esperando archivo...</p>
-            </div>
-        </aside>
+<div class="app-container">
 
-        <main class="main-content">
-            <header class="top-bar">
-                <h1 id="txt-periodo-titulo">Mantenimiento de Flota Logística</h1>
-                <div class="user-profile">
-                    <i class="fa-solid fa-circle-user"></i>
-                    <span>Operaciones</span>
-                </div>
-            </header>
+    <!-- SIDEBAR -->
 
-            <div class="content-body">
-                <section id="upload-tab" class="tab-view active">
-                    <div class="upload-container">
-                        <div class="upload-card">
-                            <h2>Importar Matriz de Control Mensual</h2>
-                            <p>Arrastra el archivo Excel del reporte de mantenimientos preventivos o haz clic en el recuadro para examinar tus carpetas locales.</p>
-                            
-                            <div class="drop-zone" id="drop-zone">
-                                <i class="fa-solid fa-cloud-arrow-up icon-drop"></i>
-                                <p>Arrastra tu archivo .xlsx aquí o <span>Busca en tu equipo</span></p>
-                                <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;">
-                            </div>
-                            
-                            <div id="upload-status" class="status-message" style="display: none;"></div>
+    <aside class="sidebar">
+
+        <div class="sidebar-header">
+
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+
+            <h2>PROCON</h2>
+
+            <span class="tag-version">V3.0</span>
+
+        </div>
+
+        <ul class="sidebar-menu">
+
+            <li class="sidebar-item active" data-tab="upload-tab">
+                <i class="fa-solid fa-file-upload"></i>
+                Cargar Archivo
+            </li>
+
+            <li class="sidebar-item disabled"
+                id="menu-dashboard"
+                data-tab="dashboard-tab">
+
+                <i class="fa-solid fa-chart-line"></i>
+                Vista Ejecutiva
+
+            </li>
+
+            <li class="sidebar-item disabled"
+                id="menu-programacion"
+                data-tab="programacion-tab">
+
+                <i class="fa-solid fa-calendar-check"></i>
+                Programación Mensual
+
+            </li>
+
+            <li class="sidebar-item disabled"
+                id="menu-distribucion"
+                data-tab="distribucion-tab">
+
+                <i class="fa-solid fa-chart-pie"></i>
+                Distribuciones
+
+            </li>
+
+        </ul>
+
+        <div class="sidebar-footer">
+
+            <p id="lbl-periodo-actual">
+
+                <i class="fa-solid fa-clock"></i>
+                Esperando archivo...
+
+            </p>
+
+        </div>
+
+    </aside>
+
+    <!-- MAIN -->
+
+    <main class="main-content">
+
+        <header class="top-bar">
+
+            <h1 id="txt-periodo-titulo">
+                Dashboard Ejecutivo de Mantenimiento Preventivo
+            </h1>
+
+            <div class="user-profile">
+
+                <i class="fa-solid fa-circle-user"></i>
+
+                <span>Operaciones</span>
+
+            </div>
+
+        </header>
+
+        <div class="content-body">
+
+            <!-- CARGA -->
+
+            <section id="upload-tab" class="tab-view active">
+
+                <div class="upload-container">
+
+                    <div class="upload-card">
+
+                        <h2>Cargar Archivo Excel</h2>
+
+                        <p>
+
+                            Selecciona el archivo mensual de
+                            programación preventiva.
+
+                        </p>
+
+                        <div class="drop-zone" id="drop-zone">
+
+                            <i class="fa-solid fa-cloud-arrow-up icon-drop"></i>
+
+                            <p>
+
+                                Arrastra el archivo aquí o
+                                <span>selecciona desde tu equipo</span>
+
+                            </p>
+
+                            <input
+                                type="file"
+                                id="file-input"
+                                accept=".xlsx,.xls"
+                                style="display:none;">
+
                         </div>
+
+                        <div
+                            id="upload-status"
+                            class="status-message"
+                            style="display:none;">
+                        </div>
+
                     </div>
+
+                </div>
+
+            </section>
+
+            <!-- DASHBOARD -->
+
+            <div id="dashboard-wrapper" style="display:none;">
+
+                <!-- EJECUTIVO -->
+
+                <section id="dashboard-tab" class="tab-view">
+
+                    <div class="kpi-grid">
+
+                        <div class="kpi-card status-neutral">
+
+                            <div class="kpi-title">
+                                Total Programados
+                            </div>
+
+                            <div class="kpi-value" id="kpi-total">
+                                0
+                            </div>
+
+                        </div>
+
+                        <div class="kpi-card status-success">
+
+                            <div class="kpi-title">
+                                Servicio Dominante
+                            </div>
+
+                            <div class="kpi-value"
+                                id="kpi-servicio-principal">
+
+                                -
+
+                            </div>
+
+                        </div>
+
+                        <div class="kpi-card status-warning">
+
+                            <div class="kpi-title">
+                                Ubicación Principal
+                            </div>
+
+                            <div class="kpi-value"
+                                id="kpi-ubicacion-principal">
+
+                                -
+
+                            </div>
+
+                        </div>
+
+                        <div class="kpi-card status-danger">
+
+                            <div class="kpi-title">
+                                Taller Principal
+                            </div>
+
+                            <div class="kpi-value"
+                                id="kpi-taller-principal">
+
+                                -
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="insight-card">
+
+                        <div class="insight-icon">
+
+                            <i class="fa-solid fa-lightbulb"></i>
+
+                        </div>
+
+                        <div class="insight-content">
+
+                            <h3>
+                                Diagnóstico Ejecutivo
+                            </h3>
+
+                            <p id="txt-insights">
+
+                                Esperando información...
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
                 </section>
 
-                <div id="dashboard-wrapper" style="display: none;">
-                    
-                    <section id="dashboard-tab" class="tab-view">
-                        <div class="kpi-grid">
-                            <div class="kpi-card" id="card-semaforo-ejec">
-                                <div class="kpi-title">Mantenimientos Programados</div>
-                                <div class="kpi-value" id="kpi-total">0</div>
-                                <div class="kpi-subtext" id="kpi-sub-ejec">0 Concluidos</div>
-                            </div>
-                            <div class="kpi-card status-success">
-                                <div class="kpi-title">Porcentaje de Avance</div>
-                                <div class="kpi-value" id="kpi-avance-pct">0%</div>
-                                <div class="kpi-subtext">Eficiencia del periodo</div>
-                            </div>
-                            <div class="kpi-card" id="card-semaforo-tol">
-                                <div class="kpi-title">En Ventana Tolerancia</div>
-                                <div class="kpi-value" id="kpi-tol-pct">0%</div>
-                                <div class="kpi-subtext" id="kpi-sub-tol">0 Prórrogas válidas</div>
-                            </div>
-                            <div class="kpi-card" id="card-semaforo-venc">
-                                <div class="kpi-title">Estatus Vencidos</div>
-                                <div class="kpi-value" id="kpi-venc-total">0</div>
-                                <div class="kpi-subtext" id="kpi-sub-venc">0 Fuera de norma</div>
-                            </div>
+                <!-- PROGRAMACION -->
+
+                <section id="programacion-tab" class="tab-view">
+
+                    <div class="table-card">
+
+                        <h3>
+
+                            <i class="fa-solid fa-filter"></i>
+
+                            Filtros
+
+                        </h3>
+
+                        <div class="filter-bar">
+
+                            <select id="filterMes">
+
+                                <option value="TODOS">
+                                    Todos los meses
+                                </option>
+
+                            </select>
+
+                            <select id="filterAnio">
+
+                                <option value="TODOS">
+                                    Todos los años
+                                </option>
+
+                            </select>
+
+                            <select id="filterServicio">
+
+                                <option value="TODOS">
+                                    Todos los servicios
+                                </option>
+
+                            </select>
+
                         </div>
 
-                        <div class="charts-grid">
-                            <div class="chart-card">
-                                <h3><i class="fa-solid fa-chart-column"></i> Cumplimiento por Tipo de Equipo</h3>
-                                <div class="chart-container">
-                                    <canvas id="chartExecutiveBar"></canvas>
-                                </div>
-                            </div>
-                            <div class="chart-card">
-                                <h3><i class="fa-solid fa-chart-donut"></i> Distribución General del Periodo</h3>
-                                <div class="chart-container">
-                                    <canvas id="chartExecutivePie"></canvas>
-                                </div>
-                            </div>
+                    </div>
+
+                    <br>
+
+                    <div class="table-card">
+
+                        <h3>
+
+                            <i class="fa-solid fa-list-check"></i>
+
+                            Resumen por Servicio
+
+                        </h3>
+
+                        <div class="table-responsive">
+
+                            <table class="custom-table">
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th>Servicio</th>
+                                        <th>Cantidad</th>
+                                        <th>%</th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody id="tablaServiciosDetalle">
+
+                                </tbody>
+
+                            </table>
+
                         </div>
 
-                        <div class="insight-card">
-                            <div class="insight-icon"><i class="fa-solid fa-lightbulb"></i></div>
-                            <div class="insight-content">
-                                <h3>Diagnóstico Ejecutivo Automatizado</h3>
-                                <p id="txt-insights">Esperando el análisis de datos de la flota para generar comentarios...</p>
-                            </div>
+                    </div>
+
+                    <br>
+
+                    <div class="table-card">
+
+                        <h3>
+
+                            <i class="fa-solid fa-truck"></i>
+
+                            Matriz Ejecutiva
+
+                        </h3>
+
+                        <div class="table-responsive">
+
+                            <table class="custom-table">
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th>Unidad</th>
+                                        <th>Tipo</th>
+                                        <th>Servicio</th>
+                                        <th>Ubicación</th>
+                                        <th>Taller</th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody id="tablaProgramacion">
+
+                                </tbody>
+
+                            </table>
+
                         </div>
 
-                        <div class="table-card">
-                            <h3><i class="fa-solid fa-list-check"></i> Resumen de Gestión por Grupo de Maquinaria</h3>
-                            <div class="table-responsive">
-                                <table class="custom-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Familia de Equipo</th>
-                                            <th>Planificados</th>
-                                            <th>Ejecutados</th>
-                                            <th>En Tolerancia</th>
-                                            <th>Vencidos</th>
-                                            <th>% Eficiencia</th>
-                                            <th>Semáforo</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="tbl-body-operativo">
-                                        </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </section>
+                    </div>
 
-                    <section id="distribucion-tab" class="tab-view">
-                        <div class="charts-grid-tres">
-                            <div class="chart-card">
-                                <h3><i class="fa-solid fa-map-location-dot"></i> Mantenimientos por Planta / Ubicación</h3>
-                                <div class="chart-container">
-                                    <canvas id="chartUbicaciones"></canvas>
-                                </div>
+                </section>
+
+                <!-- DISTRIBUCIONES -->
+
+                <section id="distribucion-tab" class="tab-view">
+
+                    <div class="charts-grid-tres">
+
+                        <div class="chart-card">
+
+                            <h3>
+
+                                Distribución por Servicio
+
+                            </h3>
+
+                            <div class="chart-container">
+
+                                <canvas id="chartServicios">
+
+                                </canvas>
+
                             </div>
-                            <div class="chart-card">
-                                <h3><i class="fa-solid fa-gears"></i> Distribución por Tipo de Servicio</h3>
-                                <div class="chart-container">
-                                    <canvas id="chartServicios"></canvas>
-                                </div>
-                            </div>
+
                         </div>
 
-                        <div class="table-card" style="margin-top: 24px;">
-                            <h3><i class="fa-solid fa-truck-monster"></i> Resumen Frecuencial de Flota Pesada</h3>
-                            <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Frecuencia total calculada sobre el desglose internoizado en el archivo fuente.</p>
-                            <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
-                                <div class="kpi-card status-neutral">
-                                    <div class="kpi-title">Revolvedoras (Ollas)</div>
-                                    <div class="kpi-value" id="dist-revolvedoras">0</div>
-                                </div>
-                                <div class="kpi-card status-neutral">
-                                    <div class="kpi-title">Bombas Pluma / Estac.</div>
-                                    <div class="kpi-value" id="dist-bombas">0</div>
-                                </div>
-                                <div class="kpi-card status-neutral">
-                                    <div class="kpi-title">Trascabos y Retros</div>
-                                    <div class="kpi-value" id="dist-maquinaria">0</div>
-                                </div>
-                                <div class="kpi-card status-neutral">
-                                    <div class="kpi-title">Sistemas de Planta</div>
-                                    <div class="kpi-value" id="dist-plantas">0</div>
-                                end</div>
+                        <div class="chart-card">
+
+                            <h3>
+
+                                Distribución por Equipo
+
+                            </h3>
+
+                            <div class="chart-container">
+
+                                <canvas id="chartEquipos">
+
+                                </canvas>
+
                             </div>
+
                         </div>
-                    </section>
 
-                </div> </div>
-        </main>
-    </div>
+                    </div>
 
-    <script src="js/excelParser.js"></script>
-    <script src="js/charts.js"></script>
-    <script src="js/app.js"></script>
+                    <div class="charts-grid-tres">
+
+                        <div class="chart-card">
+
+                            <h3>
+
+                                Distribución por Taller
+
+                            </h3>
+
+                            <div class="chart-container">
+
+                                <canvas id="chartTalleres">
+
+                                </canvas>
+
+                            </div>
+
+                        </div>
+
+                        <div class="chart-card">
+
+                            <h3>
+
+                                Distribución por Ubicación
+
+                            </h3>
+
+                            <div class="chart-container">
+
+                                <canvas id="chartUbicaciones">
+
+                                </canvas>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+<script src="js/excelParser.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+
 </body>
 </html>
