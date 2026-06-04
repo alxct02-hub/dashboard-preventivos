@@ -1,7 +1,7 @@
 /*
 ==========================================
 PROCON DASHBOARD V4.0
-EXCEL PARSER - MEJORADO
+EXCEL PARSER - MEJORADO v2
 ==========================================
 */
 
@@ -39,12 +39,50 @@ function parseExcelMatrix(matrix, sheetName){
 
     /*
     ==========================================
-    DETECTAR COLUMNAS AUTOMÁTICAMENTE
+    BUSCAR FILA DE ENCABEZADOS
     ==========================================
     */
 
-    const headerRow = matrix[0];
+    let headerRowIndex = -1;
+    let headerRow = null;
+
+    // Buscar la fila que contiene los encabezados
+    // Buscamos una fila que tenga "Mes" o "MANTENIMIENTOS" como primer indicativo
+    for (let i = 0; i < Math.min(5, matrix.length); i++) {
+        const row = matrix[i];
+        if (!row || row.length === 0) continue;
+
+        const rowContent = row.map(cell => 
+            String(cell || "").trim().toUpperCase()
+        ).join(" ");
+
+        // Detectar si esta es la fila de encabezados
+        if (
+            rowContent.includes("MES") ||
+            rowContent.includes("MANTENIMIENTO") ||
+            (rowContent.includes("AÑO") && rowContent.includes("UBICACION"))
+        ) {
+            headerRowIndex = i;
+            headerRow = row;
+            console.log(`Fila de encabezados encontrada en índice: ${i}`);
+            break;
+        }
+    }
+
+    // Si no encontró, usar la primera fila
+    if (headerRowIndex === -1) {
+        headerRowIndex = 0;
+        headerRow = matrix[0];
+        console.log("Usando primera fila como encabezados");
+    }
+
     console.log("Encabezados detectados:", headerRow);
+
+    /*
+    ==========================================
+    DETECTAR COLUMNAS AUTOMÁTICAMENTE
+    ==========================================
+    */
 
     // Normalizar encabezados para búsqueda
     const normalizeHeader = (header) => {
@@ -56,7 +94,8 @@ function parseExcelMatrix(matrix, sheetName){
             .replace(/[íìîï]/g, 'i')
             .replace(/[óòôö]/g, 'o')
             .replace(/[úùûü]/g, 'u')
-            .replace(/\s+/g, '');
+            .replace(/[\s\-_]/g, '')
+            .replace(/[°º]/g, '');
     };
 
     // Buscar índices de columnas
@@ -70,11 +109,12 @@ function parseExcelMatrix(matrix, sheetName){
 
     headerRow.forEach((header, index) => {
         const normalized = normalizeHeader(header);
+        console.log(`Columna ${index}: "${header}" -> normalizado: "${normalized}"`);
 
         if (normalized.includes('mes')) COL_MES = index;
-        if (normalized.includes('ao') || normalized.includes('anio')) COL_ANIO = index;
+        if (normalized.includes('ano') || normalized.includes('anio')) COL_ANIO = index;
         if (normalized.includes('ubicacion')) COL_UBICACION = index;
-        if (normalized.includes('n') && normalized.length <= 2) COL_UNIDAD = index;
+        if (normalized === 'n' || normalized === 'n') COL_UNIDAD = index;
         if (normalized === 'tipo' && COL_SERVICIO === -1) COL_TIPO = index;
         if (normalized.includes('mtto') || normalized.includes('mantenimiento')) COL_SERVICIO = index;
         if (normalized.includes('taller')) COL_TALLER = index;
@@ -83,10 +123,17 @@ function parseExcelMatrix(matrix, sheetName){
     // Si no encontró "Tipo mtto", buscar "Tipo" que sea servicio
     if (COL_SERVICIO === -1) {
         headerRow.forEach((header, index) => {
-            if (normalizeHeader(header) === 'tipo') {
+            const normalized = normalizeHeader(header);
+            if (normalized === 'tipo') {
                 COL_SERVICIO = index;
             }
         });
+    }
+
+    // Si no encontró N°, buscar columna 3 (posición típica)
+    if (COL_UNIDAD === -1 && headerRow.length > 3) {
+        COL_UNIDAD = 3;
+        console.log("Asignando columna 3 como Unidad (N°)");
     }
 
     console.log("Índices detectados:", {
@@ -101,13 +148,20 @@ function parseExcelMatrix(matrix, sheetName){
 
     // Validar que se encontraron las columnas críticas
     if (COL_MES === -1 || COL_ANIO === -1 || COL_UNIDAD === -1 || COL_SERVICIO === -1) {
-        console.error("No se encontraron todas las columnas requeridas");
+        console.error("No se encontraron todas las columnas requeridas", {
+            COL_MES,
+            COL_ANIO,
+            COL_UNIDAD,
+            COL_SERVICIO
+        });
         return result;
     }
 
-    // Procesar filas de datos (comenzando desde fila 2)
+    // Procesar filas de datos (comenzando desde la siguiente fila después de encabezados)
+    const dataStartIndex = headerRowIndex + 1;
+    
     for(
-        let i = 1;
+        let i = dataStartIndex;
         i < matrix.length;
         i++
     ){
@@ -126,6 +180,7 @@ function parseExcelMatrix(matrix, sheetName){
                 row[COL_UNIDAD] || ""
             ).trim();
 
+        // Saltar filas vacías
         if(
             unidad === ""
         ){
@@ -182,7 +237,9 @@ function parseExcelMatrix(matrix, sheetName){
     }
 
     console.log("Registros procesados:", result.registros.length);
-    console.log("Primeros 3 registros:", result.registros.slice(0, 3));
+    if (result.registros.length > 0) {
+        console.log("Primeros 3 registros:", result.registros.slice(0, 3));
+    }
 
     GLOBAL_DATA =
         result.registros;
@@ -274,7 +331,6 @@ function clasificarEquipo(
     return "OTROS";
 
 }
-
 /*
 ==========================================
 ESTADISTICAS GENERALES
