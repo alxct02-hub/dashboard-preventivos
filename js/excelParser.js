@@ -33,6 +33,7 @@ function parseExcelMatrix(matrix, sheetName){
         !matrix ||
         matrix.length < 2
     ){
+        console.warn("Matriz vacía o inválida");
         return result;
     }
 
@@ -64,25 +65,7 @@ function parseExcelMatrix(matrix, sheetName){
     const COL_SERVICIO = 5;
     const COL_TALLER = 9;
 
-    // Validar que la fila 1 contiene encabezados válidos
-    const headerRow = matrix[0];
-    if (!headerRow || headerRow.length < 10) {
-        console.warn("Encabezados inválidos detectados");
-        return result;
-    }
-
-    // Validar que los encabezados sean reconocibles
-    const expectedHeaders = ["Mes", "Año", "Ubicación", "N°", "Tipo", "Tipo mtto", "Hr/Km planificado", "Registro", "Estatus", "Taller"];
-    const headerValidation = expectedHeaders.every((header, index) => {
-        const cellValue = String(headerRow[index] || "").trim().toUpperCase();
-        const expectedValue = String(header).trim().toUpperCase();
-        return cellValue === expectedValue;
-    });
-
-    if (!headerValidation) {
-        console.warn("Los encabezados no coinciden con el formato esperado");
-        return result;
-    }
+    console.log("Fila 1 (Encabezados):", matrix[0]);
 
     for(
         let i = 1;
@@ -158,6 +141,8 @@ function parseExcelMatrix(matrix, sheetName){
         );
 
     }
+
+    console.log("Registros procesados:", result.registros.length);
 
     GLOBAL_DATA =
         result.registros;
