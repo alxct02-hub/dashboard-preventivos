@@ -31,7 +31,7 @@ function parseExcelMatrix(matrix, sheetName){
 
     if(
         !matrix ||
-        matrix.length < 3
+        matrix.length < 2
     ){
         return result;
     }
@@ -52,8 +52,8 @@ function parseExcelMatrix(matrix, sheetName){
     I = Estatus
     J = Taller
 
-    Encabezado = fila 2
-    Datos = fila 3+
+    Encabezado = fila 1
+    Datos = fila 2+
     */
 
     const COL_MES = 0;
@@ -64,8 +64,28 @@ function parseExcelMatrix(matrix, sheetName){
     const COL_SERVICIO = 5;
     const COL_TALLER = 9;
 
+    // Validar que la fila 1 contiene encabezados válidos
+    const headerRow = matrix[0];
+    if (!headerRow || headerRow.length < 10) {
+        console.warn("Encabezados inválidos detectados");
+        return result;
+    }
+
+    // Validar que los encabezados sean reconocibles
+    const expectedHeaders = ["Mes", "Año", "Ubicación", "N°", "Tipo", "Tipo mtto", "Hr/Km planificado", "Registro", "Estatus", "Taller"];
+    const headerValidation = expectedHeaders.every((header, index) => {
+        const cellValue = String(headerRow[index] || "").trim().toUpperCase();
+        const expectedValue = String(header).trim().toUpperCase();
+        return cellValue === expectedValue;
+    });
+
+    if (!headerValidation) {
+        console.warn("Los encabezados no coinciden con el formato esperado");
+        return result;
+    }
+
     for(
-        let i = 2;
+        let i = 1;
         i < matrix.length;
         i++
     ){
