@@ -105,7 +105,7 @@ function renderCharts() {
     options: { responsive: true, plugins: { legend: { display: false } } }
   });
 
-  // 2. Tipo de Mantenimiento - CON PORCENTAJES VISIBLES
+  // 2. Tipo de Mantenimiento - Con porcentajes
   const tipoMttoData = {};
   filteredData.forEach(row => {
     const t = getValue(row, 'Tipo mtto') || 'N/A';
@@ -113,7 +113,7 @@ function renderCharts() {
   });
   const totalMtto = Object.values(tipoMttoData).reduce((a, b) => a + b, 0);
 
-  const labelsWithPercent = Object.keys(tipoMttoData).map(key => {
+  const labelsMtto = Object.keys(tipoMttoData).map(key => {
     const value = tipoMttoData[key];
     const percent = ((value / totalMtto) * 100).toFixed(1);
     return `${key} (${percent}%)`;
@@ -122,7 +122,7 @@ function renderCharts() {
   charts.tipoMtto = new Chart(document.getElementById('chartTipoMantenimiento'), {
     type: 'pie',
     data: {
-      labels: labelsWithPercent,
+      labels: labelsMtto,
       datasets: [{
         data: Object.values(tipoMttoData),
         backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1']
@@ -131,24 +131,12 @@ function renderCharts() {
     options: {
       responsive: true,
       plugins: {
-        legend: { 
-          position: 'right',
-          labels: { font: { size: 13 } }
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const value = context.raw;
-              const percent = ((value / totalMtto) * 100).toFixed(1);
-              return ` ${context.label}: ${value} servicios`;
-            }
-          }
-        }
+        legend: { position: 'right', labels: { font: { size: 13 } } }
       }
     }
   });
 
-  // 3. Proveedor (Taller)
+  // 3. Proveedor (Taller) - Con porcentajes en leyenda
   const proveedorData = {};
   filteredData.forEach(row => {
     const t = getValue(row, 'Taller') || 'Sin asignar';
@@ -156,27 +144,27 @@ function renderCharts() {
   });
   const totalProveedor = Object.values(proveedorData).reduce((a, b) => a + b, 0);
 
+  const labelsProveedor = Object.keys(proveedorData).map(key => {
+    const value = proveedorData[key];
+    const percent = ((value / totalProveedor) * 100).toFixed(1);
+    return `${key} (${percent}%)`;
+  });
+
   charts.proveedor = new Chart(document.getElementById('chartProveedor'), {
     type: 'doughnut',
     data: {
-      labels: Object.keys(proveedorData),
+      labels: labelsProveedor,
       datasets: [{ 
         data: Object.values(proveedorData), 
-        backgroundColor: ['#22c55e', '#eab308', '#ef4444', '#3b82f6', '#a855f7'] 
+        backgroundColor: ['#22c55e', '#eab308', '#ef4444', '#3b82f6', '#a855f7', '#6366f1'] 
       }]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: { position: 'right' },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const value = context.raw;
-              const percent = ((value / totalProveedor) * 100).toFixed(1);
-              return `${context.label}: ${value} (${percent}%)`;
-            }
-          }
+        legend: { 
+          position: 'right',
+          labels: { font: { size: 13 } }
         }
       }
     }
@@ -195,7 +183,7 @@ function renderCharts() {
   });
 }
 
-// ==================== TABLA AGRUPADA POR "TIPO MTTO" ====================
+// Tabla agrupada por Tipo Mtto
 function renderTable() {
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
@@ -210,7 +198,6 @@ function renderTable() {
   Object.keys(grouped).sort().forEach(tipoMtto => {
     const rows = grouped[tipoMtto];
 
-    // Fila de grupo
     const groupRow = document.createElement('tr');
     groupRow.className = "bg-indigo-50 font-semibold";
     groupRow.innerHTML = `
@@ -220,7 +207,6 @@ function renderTable() {
     `;
     tbody.appendChild(groupRow);
 
-    // Filas detalladas
     rows.forEach(row => {
       const estatus = getValue(row, 'Estatus') || 'Pendiente';
       const isExecuted = estatus.toLowerCase().includes('ejecutado');
