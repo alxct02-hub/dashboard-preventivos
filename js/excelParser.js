@@ -1,7 +1,7 @@
 /*
 ==========================================
 PROCON DASHBOARD V4.0
-EXCEL PARSER - MEJORADO v3
+EXCEL PARSER - FINAL
 ==========================================
 */
 
@@ -37,68 +37,74 @@ function parseExcelMatrix(matrix, sheetName){
         return result;
     }
 
+    console.log("=== INICIO ANÁLISIS EXCEL ===");
+    console.log("Total de filas:", matrix.length);
+    
+    // Mostrar primeras 5 filas para análisis
+    for (let i = 0; i < Math.min(5, matrix.length); i++) {
+        console.log(`Fila ${i}:`, matrix[i]);
+    }
+
     /*
     ==========================================
-    BUSCAR FILA DE ENCABEZADOS
+    DETECTAR FILA DE ENCABEZADOS
     ==========================================
     */
 
     let headerRowIndex = -1;
     let headerRow = null;
 
-    // Buscar la fila que contiene los encabezados reales
-    // Ignorar filas de título como "MANTENIMIENTOS PREVENTIVOS"
-    for (let i = 0; i < Math.min(10, matrix.length); i++) {
+    // Estrategia: buscar la fila que tenga "MES" en la primera celda
+    // o la primera fila con contenido significativo después de saltar filas de título
+    for (let i = 0; i < Math.min(15, matrix.length); i++) {
         const row = matrix[i];
         if (!row || row.length === 0) continue;
 
-        // Ignorar filas que son solo títulos (una sola celda con contenido)
-        const nonEmptyCells = row.filter(cell => 
-            String(cell || "").trim() !== ""
-        );
+        const firstCell = String(row[0] || "").trim().toUpperCase();
         
-        // Si la fila tiene menos de 4 celdas no vacías, probablemente es un título
-        if (nonEmptyCells.length < 4) {
-            console.log(`Fila ${i} descartada (parece ser título): ${row[0]}`);
+        // Detectar filas de título o filtros
+        if (firstCell === "MANTENIMIENTOS PREVENTIVOS" || 
+            firstCell === "(TODAS)" ||
+            firstCell === "") {
+            console.log(`Fila ${i} descartada (título/filtro): "${firstCell}"`);
             continue;
         }
 
-        const rowContent = row.map(cell => 
-            String(cell || "").trim().toUpperCase()
-        ).join(" ");
+        // La fila de encabezados debe comenzar con "MES" o tener múltiples columnas no vacías
+        const nonEmptyCells = row.filter(cell => 
+            String(cell || "").trim() !== ""
+        ).length;
 
-        // Detectar si esta es la fila de encabezados
-        // Buscar palabras clave que indican que es una fila de encabezados
-        if (
-            rowContent.includes("MES") ||
-            (rowContent.includes("AÑO") && rowContent.includes("UBICACION")) ||
-            (rowContent.includes("TIPO") && rowContent.includes("TALLER"))
-        ) {
-            headerRowIndex = i;
-            headerRow = row;
-            console.log(`✓ Fila de encabezados encontrada en índice: ${i}`);
-            console.log(`Contenido: ${rowContent}`);
-            break;
+        if (firstCell === "MES" || nonEmptyCells >= 5) {
+            // Verificar que sea realmente una fila de encabezados
+            const rowContent = row.map(c => String(c || "").trim().toUpperCase()).join(" ");
+            
+            if (rowContent.includes("MES") || rowContent.includes("TIPO")) {
+                headerRowIndex = i;
+                headerRow = row;
+                console.log(`✓ ENCABEZADOS ENCONTRADOS en fila ${i}`);
+                console.log(`Contenido: [${row.map(c => `"${c}"`).join(", ")}]`);
+                break;
+            }
         }
     }
 
     // Si no encontró, retornar error
-    if (headerRowIndex === -1) {
-        console.error("No se encontró fila de encabezados válida");
+    if (headerRowIndex === -1 || !headerRow) {
+        console.error("❌ No se encontró fila de encabezados válida");
         return result;
     }
 
-    console.log("Encabezados detectados:", headerRow);
-
     /*
     ==========================================
-    DETECTAR COLUMNAS AUTOMÁTICAMENTE
+    MAPEAR COLUMNAS REALES
     ==========================================
     */
 
-    // Normalizar encabezados para búsqueda
-    const normalizeHeader = (header) => {
-        return String(header || "")
+    console.log("\n=== MAPEO DE COLUMNAS ===");
+
+    const normalizeText = (text) => {
+        return String(text || "")
             .trim()
             .toLowerCase()
             .replace(/[áàâä]/g, 'a')
@@ -106,11 +112,9 @@ function parseExcelMatrix(matrix, sheetName){
             .replace(/[íìîï]/g, 'i')
             .replace(/[óòôö]/g, 'o')
             .replace(/[úùûü]/g, 'u')
-            .replace(/[\s\-_]/g, '')
-            .replace(/[°º]/g, '');
+            .replace(/[\s\-_°º]/g, '');
     };
 
-    // Buscar índices de columnas
     let COL_MES = -1;
     let COL_ANIO = -1;
     let COL_UBICACION = -1;
@@ -119,65 +123,81 @@ function parseExcelMatrix(matrix, sheetName){
     let COL_SERVICIO = -1;
     let COL_TALLER = -1;
 
+    // Mapear cada columna
     headerRow.forEach((header, index) => {
-        const normalized = normalizeHeader(header);
         const original = String(header || "").trim();
+        const normalized = normalizeText(header);
         
-        console.log(`Columna ${index}: "${original}" -> "${normalized}"`);
+        console.log(`[${index}] "${original}" → "${normalized}"`);
 
-        if (normalized.includes('mes')) {
+        // Buscar "MES"
+        if (normalized.includes("mes")) {
             COL_MES = index;
             console.log(`  ✓ COL_MES = ${index}`);
         }
-        if (normalized.includes('ano') || normalized.includes('anio')) {
+
+        // Buscar "AÑO" o "ANIO"
+        if (normalized.includes("ano") || normalized.includes("anio")) {
             COL_ANIO = index;
             console.log(`  ✓ COL_ANIO = ${index}`);
         }
-        if (normalized.includes('ubicacion')) {
+
+        // Buscar "UBICACION"
+        if (normalized.includes("ubicacion")) {
             COL_UBICACION = index;
             console.log(`  ✓ COL_UBICACION = ${index}`);
         }
-        if (normalized === 'n' || normalized === 'n' || normalized.match(/^n[°º]?$/)) {
+
+        // Buscar "UNIDAD" o "N°" o "UNIDADES"
+        if (normalized.includes("unidad") || normalized === "n" || normalized.includes("numero")) {
             COL_UNIDAD = index;
             console.log(`  ✓ COL_UNIDAD = ${index}`);
         }
-        if (normalized.includes('mtto') || normalized.includes('mantenimiento')) {
+
+        // Buscar "TIPO MANTENIMIENTO" o solo "TIPO" (servicio)
+        if (normalized.includes("mantenimiento") || normalized.includes("servicio")) {
             COL_SERVICIO = index;
-            console.log(`  ✓ COL_SERVICIO = ${index}`);
+            console.log(`  ✓ COL_SERVICIO (Tipo Mantenimiento) = ${index}`);
         }
-        if (normalized.includes('taller')) {
+
+        // Buscar "TIPO EQUIPO" o "TIPO" (si no es servicio)
+        if (normalized === "tipo" && COL_SERVICIO === -1) {
+            COL_TIPO = index;
+            console.log(`  ✓ COL_TIPO = ${index}`);
+        }
+
+        // Buscar "TALLER"
+        if (normalized.includes("taller")) {
             COL_TALLER = index;
             console.log(`  ✓ COL_TALLER = ${index}`);
         }
     });
 
-    // Si no encontró "Tipo mtto", buscar "Tipo" que sea servicio
-    if (COL_SERVICIO === -1) {
+    // Fallbacks si no encontró algunas columnas
+    if (COL_UNIDAD === -1) {
+        // Si hay una columna que diga "UNIDADES" o "TIPO UNIDADES", usar esa
         headerRow.forEach((header, index) => {
-            const normalized = normalizeHeader(header);
-            if (normalized === 'tipo') {
-                COL_SERVICIO = index;
-                console.log(`Asignando columna ${index} como Servicio (Tipo)`);
+            const norm = normalizeText(header);
+            if (norm.includes("unidades")) {
+                COL_UNIDAD = index;
+                console.log(`Fallback: COL_UNIDAD asignada a ${index} (contiene "unidades")`);
             }
         });
     }
 
-    // Si no encontró "Tipo" como columna separada, buscar en posición esperada
-    if (COL_TIPO === -1 && headerRow.length > 4) {
-        const norm4 = normalizeHeader(headerRow[4]);
-        if (norm4.includes('tipo')) {
-            COL_TIPO = 4;
-            console.log(`Asignando columna 4 como Tipo`);
-        }
+    if (COL_SERVICIO === -1) {
+        // Si hay una columna que diga "PLANEADOS" y sea después de columna 4, usar esa como servicio
+        headerRow.forEach((header, index) => {
+            const norm = normalizeText(header);
+            if (norm.includes("planeado") && index > 4) {
+                COL_SERVICIO = index;
+                console.log(`Fallback: COL_SERVICIO asignada a ${index} (contiene "planeado")`);
+            }
+        });
     }
 
-    // Si no encontró N°, usar columna 3 (posición típica)
-    if (COL_UNIDAD === -1 && headerRow.length > 3) {
-        COL_UNIDAD = 3;
-        console.log("Asignando columna 3 como Unidad (N°)");
-    }
-
-    console.log("Índices detectados:", {
+    console.log("\n=== ÍNDICES FINALES ===");
+    console.log({
         COL_MES,
         COL_ANIO,
         COL_UBICACION,
@@ -188,109 +208,79 @@ function parseExcelMatrix(matrix, sheetName){
     });
 
     // Validar que se encontraron las columnas críticas
-    if (COL_MES === -1 || COL_ANIO === -1 || COL_UNIDAD === -1 || COL_SERVICIO === -1) {
-        console.error("No se encontraron todas las columnas requeridas", {
+    if (COL_MES === -1 || COL_UNIDAD === -1 || COL_SERVICIO === -1) {
+        console.error("❌ Faltan columnas críticas:", {
             COL_MES,
-            COL_ANIO,
             COL_UNIDAD,
             COL_SERVICIO
         });
         return result;
     }
 
-    // Procesar filas de datos (comenzando desde la siguiente fila después de encabezados)
+    // Procesar filas de datos
     const dataStartIndex = headerRowIndex + 1;
-    console.log(`Procesando datos desde fila ${dataStartIndex}`);
-    
-    for(
-        let i = dataStartIndex;
-        i < matrix.length;
-        i++
-    ){
+    console.log(`\n=== PROCESANDO DATOS desde fila ${dataStartIndex} ===`);
 
+    let registrosValidos = 0;
+    let registrosSaltados = 0;
+
+    for (let i = dataStartIndex; i < matrix.length; i++) {
         const row = matrix[i];
 
-        if(
-            !row ||
-            row.length === 0
-        ){
+        if (!row || row.length === 0) {
+            registrosSaltados++;
             continue;
         }
 
-        const unidad =
-            String(
-                row[COL_UNIDAD] || ""
-            ).trim();
+        const unidad = String(row[COL_UNIDAD] || "").trim();
 
         // Saltar filas vacías
-        if(
-            unidad === ""
-        ){
+        if (unidad === "") {
+            registrosSaltados++;
             continue;
         }
 
+        const mes = String(row[COL_MES] || "").trim().toUpperCase();
+        const anio = COL_ANIO !== -1 ? 
+            String(row[COL_ANIO] || "").trim().toUpperCase() : "";
+        const servicio = String(row[COL_SERVICIO] || "").trim().toUpperCase();
+
         const registro = {
-
-            mes:
-                cleanValue(
-                    row[COL_MES]
-                ),
-
-            anio:
-                cleanValue(
-                    row[COL_ANIO]
-                ),
-
-            ubicacion:
-                COL_UBICACION !== -1 ?
-                cleanValue(row[COL_UBICACION]) :
-                "",
-
-            unidad:
-                unidad,
-
-            tipo:
-                COL_TIPO !== -1 ?
-                cleanValue(row[COL_TIPO]) :
-                "",
-
-            servicio:
-                cleanValue(
-                    row[COL_SERVICIO]
-                ),
-
-            taller:
-                COL_TALLER !== -1 ?
-                cleanValue(row[COL_TALLER]) :
-                ""
-
+            mes,
+            anio,
+            ubicacion: COL_UBICACION !== -1 ? 
+                String(row[COL_UBICACION] || "").trim().toUpperCase() : "",
+            unidad,
+            tipo: COL_TIPO !== -1 ? 
+                String(row[COL_TIPO] || "").trim().toUpperCase() : "",
+            servicio,
+            taller: COL_TALLER !== -1 ? 
+                String(row[COL_TALLER] || "").trim().toUpperCase() : ""
         };
 
-        registro.clasificacion =
-            clasificarEquipo(
-                registro.tipo,
-                registro.servicio
-            );
-
-        result.registros.push(
-            registro
+        registro.clasificacion = clasificarEquipo(
+            registro.tipo,
+            registro.servicio
         );
 
+        result.registros.push(registro);
+        registrosValidos++;
     }
 
-    console.log("✓ Registros procesados:", result.registros.length);
+    console.log(`✓ Registros válidos procesados: ${registrosValidos}`);
+    console.log(`⚠ Registros saltados (vacíos): ${registrosSaltados}`);
+
     if (result.registros.length > 0) {
-        console.log("Primeros 3 registros:", result.registros.slice(0, 3));
-    } else {
-        console.warn("⚠ No se procesaron registros");
+        console.log("\nPrimeros 3 registros:");
+        result.registros.slice(0, 3).forEach((reg, idx) => {
+            console.log(`  [${idx}]:`, reg);
+        });
     }
 
-    GLOBAL_DATA =
-        result.registros;
+    GLOBAL_DATA = result.registros;
+    buildStatistics(result);
 
-    buildStatistics(
-        result
-    );
+    console.log("=== FIN ANÁLISIS ===\n");
 
     return result;
 
@@ -375,6 +365,7 @@ function clasificarEquipo(
     return "OTROS";
 
 }
+
 /*
 ==========================================
 ESTADISTICAS GENERALES
@@ -384,12 +375,6 @@ ESTADISTICAS GENERALES
 function buildStatistics(result){
 
     result.registros.forEach(reg => {
-
-        /*
-        =====================
-        MESES
-        =====================
-        */
 
         if(
             reg.mes &&
@@ -402,12 +387,6 @@ function buildStatistics(result){
             );
         }
 
-        /*
-        =====================
-        AÑOS
-        =====================
-        */
-
         if(
             reg.anio &&
             !result.anios.includes(
@@ -419,12 +398,6 @@ function buildStatistics(result){
             );
         }
 
-        /*
-        =====================
-        SERVICIOS
-        =====================
-        */
-
         if(
             reg.servicio &&
             !result.servicios.includes(
@@ -435,12 +408,6 @@ function buildStatistics(result){
                 reg.servicio
             );
         }
-
-        /*
-        =====================
-        UBICACIONES
-        =====================
-        */
 
         if(
             !result.ubicaciones[
@@ -456,12 +423,6 @@ function buildStatistics(result){
             reg.ubicacion
         ]++;
 
-        /*
-        =====================
-        TALLERES
-        =====================
-        */
-
         if(
             !result.talleres[
                 reg.taller
@@ -476,12 +437,6 @@ function buildStatistics(result){
             reg.taller
         ]++;
 
-        /*
-        =====================
-        TIPO EQUIPO
-        =====================
-        */
-
         if(
             !result.tiposEquipo[
                 reg.clasificacion
@@ -495,12 +450,6 @@ function buildStatistics(result){
         result.tiposEquipo[
             reg.clasificacion
         ]++;
-
-        /*
-        =====================
-        SERVICIOS RESUMEN
-        =====================
-        */
 
         if(
             !result.serviciosResumen[
@@ -519,7 +468,6 @@ function buildStatistics(result){
     });
 
     result.meses.sort();
-
     result.anios.sort();
 
 }
@@ -565,7 +513,6 @@ function getServicioPrincipal(){
     });
 
     let mayor = 0;
-
     let servicio = "-";
 
     Object.keys(contador)
@@ -618,7 +565,6 @@ function getUbicacionPrincipal(){
     });
 
     let mayor = 0;
-
     let ubicacion = "-";
 
     Object.keys(contador)
@@ -671,7 +617,6 @@ function getTallerPrincipal(){
     });
 
     let mayor = 0;
-
     let taller = "-";
 
     Object.keys(contador)
@@ -764,6 +709,7 @@ function getServiciosPorcentaje(){
     return resultado;
 
 }
+
 /*
 ==========================================
 FILTROS
