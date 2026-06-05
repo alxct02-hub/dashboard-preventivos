@@ -1,4 +1,4 @@
-// app.js - Versión DEBUG (mejorada)
+// js/app.js
 let allData = [];
 let filteredData = [];
 let charts = {};
@@ -14,23 +14,19 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
       const workbook = XLSX.read(data, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      // Convertir a JSON usando headers del Excel
       allData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
       
-      console.log("✅ Archivo cargado correctamente!");
-      console.log("Total de filas:", allData.length);
-      console.log("Columnas disponibles:", Object.keys(allData[0] || {}));
+      console.log("✅ Archivo cargado:", allData.length, "filas");
+      console.log("Columnas detectadas:", Object.keys(allData[0] || {}));
 
       if (allData.length > 0) {
         filteredData = [...allData];
         initFilters();
         renderDashboard();
-      } else {
-        alert("El archivo está vacío o no se pudo leer.");
       }
     } catch (error) {
       console.error("❌ Error:", error);
-      alert("Error al leer el Excel: " + error.message);
+      alert("Error al procesar el archivo Excel");
     }
   };
   reader.readAsArrayBuffer(file);
@@ -38,40 +34,39 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
 
 function getValue(row, key) {
   if (!row) return '';
-  // Intentar con y sin espacios
-  return (row[key] || row[key.trim()] || row[key + ' '] || '').toString().trim();
+  return String(row[key] || row[key.trim()] || row[key + ' '] || '').trim();
 }
 
 function initFilters() {
-  if (allData.length === 0) return;
-
-  // Mes
+  // Mes/Año
   const meses = [...new Set(allData.map(row => {
     const m = getValue(row, 'Mes');
     const a = getValue(row, 'Año');
-    return m && a ? `${m}/${a}` : null;
+    return (m && a) ? `${m}/${a}` : null;
   }).filter(Boolean))].sort();
 
-  const mesSelect = document.getElementById('mesFilter');
-  mesSelect.innerHTML = '<option value="">Todos los meses</option>';
-  meses.forEach(m => mesSelect.appendChild(new Option(m, m)));
+  document.getElementById('mesFilter').innerHTML = '<option value="">Todos los meses</option>' +
+    meses.map(m => `<option value="${m}">${m}</option>`).join('');
 
-  // Resto de filtros
+  // Planta
   const plantas = [...new Set(allData.map(row => getValue(row, 'Ubicación')).filter(Boolean))].sort();
   const plantaSelect = document.getElementById('plantaFilter');
-  plantaSelect.innerHTML = '<option value="">Todas las plantas</option>';
-  plantas.forEach(p => plantaSelect.appendChild(new Option(p, p)));
+  plantaSelect.innerHTML = '<option value="">Todas las plantas</option>' +
+    plantas.map(p => `<option value="${p}">${p}</option>`).join('');
 
+  // Tipo
   const tipos = [...new Set(allData.map(row => getValue(row, 'Tipo')).filter(Boolean))].sort();
   const tipoSelect = document.getElementById('tipoFilter');
-  tipoSelect.innerHTML = '<option value="">Todos los tipos</option>';
-  tipos.forEach(t => tipoSelect.appendChild(new Option(t, t)));
+  tipoSelect.innerHTML = '<option value="">Todos los tipos</option>' +
+    tipos.map(t => `<option value="${t}">${t}</option>`).join('');
 
+  // Taller
   const talleres = [...new Set(allData.map(row => getValue(row, 'Taller')).filter(Boolean))].sort();
   const tallerSelect = document.getElementById('tallerFilter');
-  tallerSelect.innerHTML = '<option value="">Todos los talleres</option>';
-  talleres.forEach(t => tallerSelect.appendChild(new Option(t, t)));
+  tallerSelect.innerHTML = '<option value="">Todos los talleres</option>' +
+    talleres.map(t => `<option value="${t}">${t}</option>`).join('');
 
+  // Eventos de cambio
   ['mesFilter', 'plantaFilter', 'tipoFilter', 'tallerFilter'].forEach(id => {
     document.getElementById(id).addEventListener('change', filterAndRender);
   });
@@ -94,15 +89,10 @@ function filterAndRender() {
   renderDashboard();
 }
 
-// ... (el resto de funciones calculateKPIs, renderCharts, renderTable y renderDashboard se mantienen iguales a la versión anterior)
-
 function calculateKPIs() {
   const total = filteredData.length;
-  const ejecutados = filteredData.filter(row => {
-    const est = getValue(row, 'Estatus').toLowerCase();
-    return est.includes('ejecutado');
-  }).length;
-
+  const ejecutados = filteredData.filter(row => getValue(row, 'Estatus').toLowerCase().includes('ejecutado')).length;
+  
   document.getElementById('totalServicios').textContent = total;
   document.getElementById('ejecutados').textContent = ejecutados;
   document.getElementById('pendientes').textContent = total - ejecutados;
@@ -112,19 +102,48 @@ function calculateKPIs() {
 function renderCharts() {
   Object.values(charts).forEach(c => c && c.destroy());
 
+  // Tipo de Equipo (Barras)
   const tipoEquipo = {};
   filteredData.forEach(row => {
     const t = getValue(row, 'Tipo') || 'Sin tipo';
     tipoEquipo[t] = (tipoEquipo[t] || 0) + 1;
   });
-
   charts.tipoEquipo = new Chart(document.getElementById('chartTipoEquipo'), {
     type: 'bar', data: { labels: Object.keys(tipoEquipo), datasets: [{ label: 'Cantidad', data: Object.values(tipoEquipo), backgroundColor: '#3b82f6' }] },
     options: { responsive: true, plugins: { legend: { display: false } } }
   });
 
-  // (Mantén las otras 3 funciones de gráficos igual que antes)
-  // ... copia las demás de la versión anterior
+  // Tipo de Mantenimiento (Pie)
+  const tipoMtto = {};
+  filteredData.forEach(row => {
+    const t = getValue(row, 'Tipo mtto') || 'N/A';
+    tipoMtto[t] = (tipoMtto[t] || 0) + 1;
+  });
+  charts.tipoMtto = new Chart(document.getElementById('chartTipoMantenimiento'), {
+    type: 'pie', data: { labels: Object.keys(tipoMtto), datasets: [{ data: Object.values(tipoMtto), backgroundColor: ['#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6'] }] },
+    options: { responsive: true }
+  });
+
+  // Por Taller
+  const proveedor = {};
+  filteredData.forEach(row => {
+    const t = getValue(row, 'Taller') || 'Sin asignar';
+    proveedor[t] = (proveedor[t] || 0) + 1;
+  });
+  charts.proveedor = new Chart(document.getElementById('chartProveedor'), {
+    type: 'doughnut', data: { labels: Object.keys(proveedor), datasets: [{ data: Object.values(proveedor), backgroundColor: ['#22c55e','#eab308','#ef4444','#3b82f6'] }] }
+  });
+
+  // Por Planta
+  const plantaData = {};
+  filteredData.forEach(row => {
+    const p = getValue(row, 'Ubicación') || 'Sin planta';
+    plantaData[p] = (plantaData[p] || 0) + 1;
+  });
+  charts.planta = new Chart(document.getElementById('chartPlanta'), {
+    type: 'bar', data: { labels: Object.keys(plantaData), datasets: [{ label: 'Servicios', data: Object.values(plantaData), backgroundColor: '#6366f1' }] },
+    options: { responsive: true, indexAxis: 'y' }
+  });
 }
 
 function renderTable() {

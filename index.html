@@ -20,9 +20,12 @@
       <i class="ti ti-tools"></i> Visor Mantenimiento Preventivo
     </h1>
 
-    <!-- Upload -->
     <div class="mb-8">
-      <input type="file" id="fileInput" accept=".xlsx" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700">
+      <input type="file" id="fileInput" accept=".xlsx" 
+             class="block w-full text-sm text-gray-500 
+                    file:mr-4 file:py-3 file:px-6 file:rounded-lg 
+                    file:border-0 file:text-sm file:font-semibold 
+                    file:bg-blue-600 file:text-white hover:file:bg-blue-700">
     </div>
 
     <div id="dashboard" class="hidden">
@@ -32,59 +35,61 @@
         <select id="plantaFilter" class="border rounded-lg p-3"></select>
         <select id="tipoFilter" class="border rounded-lg p-3"></select>
         <select id="tallerFilter" class="border rounded-lg p-3"></select>
-        <button onclick="resetFilters()" class="bg-gray-700 text-white rounded-lg px-6">Limpiar Filtros</button>
+        <button onclick="resetFilters()" 
+                class="bg-gray-700 hover:bg-gray-800 text-white rounded-lg px-6 font-medium">
+          Limpiar Filtros
+        </button>
       </div>
 
+      <!-- KPIs -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-6 rounded-2xl shadow card">
+          <p class="text-gray-500 text-sm">Total Servicios</p>
+          <p id="totalServicios" class="text-4xl font-bold text-blue-600 mt-2">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow card">
+          <p class="text-gray-500 text-sm">Ejecutados</p>
+          <p id="ejecutados" class="text-4xl font-bold text-green-600 mt-2">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow card">
+          <p class="text-gray-500 text-sm">% Cumplimiento</p>
+          <p id="porcentaje" class="text-4xl font-bold text-emerald-600 mt-2">0%</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow card">
+          <p class="text-gray-500 text-sm">Pendientes</p>
+          <p id="pendientes" class="text-4xl font-bold text-amber-600 mt-2">0</p>
+        </div>
+      </div>
+
+      <!-- Gráficos -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- KPI Cards -->
-        <div class="lg:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-white p-6 rounded-2xl shadow card">
-            <p class="text-gray-500 text-sm">Total Servicios</p>
-            <p id="totalServicios" class="text-4xl font-bold text-blue-600 mt-2">0</p>
-          </div>
-          <div class="bg-white p-6 rounded-2xl shadow card">
-            <p class="text-gray-500 text-sm">Ejecutados</p>
-            <p id="ejecutados" class="text-4xl font-bold text-green-600 mt-2">0</p>
-          </div>
-          <div class="bg-white p-6 rounded-2xl shadow card">
-            <p class="text-gray-500 text-sm">% Cumplimiento</p>
-            <p id="porcentaje" class="text-4xl font-bold text-emerald-600 mt-2">0%</p>
-          </div>
-          <div class="bg-white p-6 rounded-2xl shadow card">
-            <p class="text-gray-500 text-sm">Pendientes</p>
-            <p id="pendientes" class="text-4xl font-bold text-amber-600 mt-2">0</p>
-          </div>
-        </div>
-
-        <!-- Gráficos superiores -->
         <div class="lg:col-span-7 bg-white p-6 rounded-2xl shadow">
-          <h3 class="font-semibold mb-4">Distribución de servicios por tipo de equipo</h3>
-          <canvas id="chartTipoEquipo"></canvas>
+          <h3 class="font-semibold mb-4">Distribución por Tipo de Equipo</h3>
+          <canvas id="chartTipoEquipo" height="120"></canvas>
         </div>
         <div class="lg:col-span-5 bg-white p-6 rounded-2xl shadow">
-          <h3 class="font-semibold mb-4">Distribución por tipo de mantenimiento</h3>
-          <canvas id="chartTipoMantenimiento"></canvas>
+          <h3 class="font-semibold mb-4">Distribución por Tipo de Mantenimiento</h3>
+          <canvas id="chartTipoMantenimiento" height="120"></canvas>
         </div>
 
-        <!-- Gráficos inferiores -->
         <div class="lg:col-span-5 bg-white p-6 rounded-2xl shadow">
-          <h3 class="font-semibold mb-4">Distribución por proveedor del servicio</h3>
-          <canvas id="chartProveedor"></canvas>
+          <h3 class="font-semibold mb-4">Distribución por Proveedor (Taller)</h3>
+          <canvas id="chartProveedor" height="120"></canvas>
         </div>
         <div class="lg:col-span-7 bg-white p-6 rounded-2xl shadow">
-          <h3 class="font-semibold mb-4">Distribución global de servicios por Planta</h3>
-          <canvas id="chartPlanta"></canvas>
+          <h3 class="font-semibold mb-4">Distribución por Planta</h3>
+          <canvas id="chartPlanta" height="120"></canvas>
         </div>
       </div>
 
       <!-- Tabla -->
       <div class="mt-8 bg-white rounded-2xl shadow overflow-hidden">
-        <div class="p-6 border-b">
-          <h3 class="font-semibold">Detalle de Servicios</h3>
+        <div class="p-6 border-b bg-gray-50">
+          <h3 class="font-semibold text-lg">Detalle de Servicios</h3>
         </div>
         <div class="overflow-x-auto">
-          <table id="dataTable" class="w-full text-sm">
-            <thead class="bg-gray-100">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-100 sticky top-0">
               <tr>
                 <th class="p-4 text-left">Mes</th>
                 <th class="p-4 text-left">Planta</th>
@@ -104,6 +109,7 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Script con ruta correcta -->
+  <script src="js/app.js"></script>
 </body>
 </html>
