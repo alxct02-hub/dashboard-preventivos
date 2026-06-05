@@ -90,7 +90,6 @@ function calculateKPIs() {
   document.getElementById('porcentaje').textContent = total ? Math.round((ejecutados / total) * 100) + '%' : '0%';
 }
 
-// ==================== GRÁFICOS CON PORCENTAJES ====================
 function renderCharts() {
   Object.values(charts).forEach(c => c && c.destroy());
 
@@ -106,7 +105,7 @@ function renderCharts() {
     options: { responsive: true, plugins: { legend: { display: false } } }
   });
 
-  // 2. Tipo de Mantenimiento - CON PORCENTAJES
+  // 2. Tipo de Mantenimiento - CON PORCENTAJES VISIBLES
   const tipoMttoData = {};
   filteredData.forEach(row => {
     const t = getValue(row, 'Tipo mtto') || 'N/A';
@@ -114,25 +113,34 @@ function renderCharts() {
   });
   const totalMtto = Object.values(tipoMttoData).reduce((a, b) => a + b, 0);
 
+  const labelsWithPercent = Object.keys(tipoMttoData).map(key => {
+    const value = tipoMttoData[key];
+    const percent = ((value / totalMtto) * 100).toFixed(1);
+    return `${key} (${percent}%)`;
+  });
+
   charts.tipoMtto = new Chart(document.getElementById('chartTipoMantenimiento'), {
     type: 'pie',
     data: {
-      labels: Object.keys(tipoMttoData),
+      labels: labelsWithPercent,
       datasets: [{
         data: Object.values(tipoMttoData),
-        backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
+        backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1']
       }]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: { position: 'right' },
+        legend: { 
+          position: 'right',
+          labels: { font: { size: 13 } }
+        },
         tooltip: {
           callbacks: {
             label: function(context) {
               const value = context.raw;
               const percent = ((value / totalMtto) * 100).toFixed(1);
-              return `${context.label}: ${value} (${percent}%)`;
+              return ` ${context.label}: ${value} servicios`;
             }
           }
         }
@@ -140,7 +148,7 @@ function renderCharts() {
     }
   });
 
-  // 3. Proveedor (Taller) - CON PORCENTAJES
+  // 3. Proveedor (Taller)
   const proveedorData = {};
   filteredData.forEach(row => {
     const t = getValue(row, 'Taller') || 'Sin asignar';
@@ -152,9 +160,9 @@ function renderCharts() {
     type: 'doughnut',
     data: {
       labels: Object.keys(proveedorData),
-      datasets: [{
-        data: Object.values(proveedorData),
-        backgroundColor: ['#22c55e', '#eab308', '#ef4444', '#3b82f6', '#a855f7']
+      datasets: [{ 
+        data: Object.values(proveedorData), 
+        backgroundColor: ['#22c55e', '#eab308', '#ef4444', '#3b82f6', '#a855f7'] 
       }]
     },
     options: {
@@ -187,33 +195,32 @@ function renderCharts() {
   });
 }
 
-// ==================== TABLA AGRUPADA POR TIPO ====================
+// ==================== TABLA AGRUPADA POR "TIPO MTTO" ====================
 function renderTable() {
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
 
-  // Agrupar por Tipo
   const grouped = {};
   filteredData.forEach(row => {
-    const tipo = getValue(row, 'Tipo') || 'Sin tipo';
-    if (!grouped[tipo]) grouped[tipo] = [];
-    grouped[tipo].push(row);
+    const tipoMtto = getValue(row, 'Tipo mtto') || 'Sin tipo mtto';
+    if (!grouped[tipoMtto]) grouped[tipoMtto] = [];
+    grouped[tipoMtto].push(row);
   });
 
-  Object.keys(grouped).sort().forEach(tipo => {
-    const rows = grouped[tipo];
+  Object.keys(grouped).sort().forEach(tipoMtto => {
+    const rows = grouped[tipoMtto];
 
-    // Fila de encabezado de grupo
+    // Fila de grupo
     const groupRow = document.createElement('tr');
-    groupRow.className = "bg-blue-50 font-semibold";
+    groupRow.className = "bg-indigo-50 font-semibold";
     groupRow.innerHTML = `
       <td colspan="9" class="p-4 text-lg">
-        Tipo: ${tipo} <span class="text-sm font-normal text-gray-500">(${rows.length} servicios)</span>
+        Tipo Mtto: ${tipoMtto} <span class="text-sm font-normal text-gray-500">(${rows.length} servicios)</span>
       </td>
     `;
     tbody.appendChild(groupRow);
 
-    // Filas de detalle
+    // Filas detalladas
     rows.forEach(row => {
       const estatus = getValue(row, 'Estatus') || 'Pendiente';
       const isExecuted = estatus.toLowerCase().includes('ejecutado');
