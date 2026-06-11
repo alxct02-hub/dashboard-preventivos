@@ -367,14 +367,12 @@ function classifyTipo(tipoVal) {
 
 function isExcluded(row) {
   const fields = [getValue(row, 'Tipo mtto'), getValue(row, 'Servicio'), getValue(row, 'Descripcion'), getValue(row, 'Tipo')];
-  return fields.some(f => f.toUpperCase().includes('MODULO') || f.toUpperCase().includes('MOTOR'));
+  return fields.some(f => f.toUpperCase().includes('MOTOR'));
 }
 
 function classifyStatus(row) {
-  const costo = getValue(row, 'Costo');
   const estatus = getValue(row, 'Estatus').toLowerCase();
-
-  if (costo && costo !== '' && costo !== '0') return 'ejecutado';
+  if (estatus.includes('ejecutado')) return 'ejecutado';
   if (estatus.includes('tolerancia')) return 'tolerancia';
   return 'vencido';
 }
