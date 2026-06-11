@@ -4,6 +4,7 @@ const STORAGE_KEY = 'mant_preventivo_data';
 let allData = [];
 let filteredData = [];
 let charts = {};
+let indMesValue = '';
 
 // ─── Tabs ───────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -161,6 +162,13 @@ function initFilters() {
     document.getElementById(id).removeEventListener('change', filterAndRender);
     document.getElementById(id).addEventListener('change', filterAndRender);
   });
+
+  // Filtro mes del indicador (usa las mismas opciones)
+  const indSel = document.getElementById('indMesFilter');
+  indSel.innerHTML = '<option value="">Todos los meses</option>' +
+    meses.map(m => `<option value="${m}">${m}</option>`).join('');
+  indSel.removeEventListener('change', onIndMesChange);
+  indSel.addEventListener('change', onIndMesChange);
 }
 
 function filterAndRender() {
@@ -186,6 +194,17 @@ function resetFilters() {
   });
   filteredData = [...allData];
   renderDashboard();
+}
+
+function onIndMesChange() {
+  indMesValue = document.getElementById('indMesFilter').value;
+  renderIndicador();
+}
+
+function resetIndFilter() {
+  indMesValue = '';
+  document.getElementById('indMesFilter').value = '';
+  renderIndicador();
 }
 
 // ─── KPIs Resumen ────────────────────────────────────────────────────────────
@@ -257,6 +276,12 @@ function renderCharts() {
   });
 }
 
+function formatCosto(val) {
+  const n = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
+  if (isNaN(n) || n === 0) return '—';
+  return n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // ─── Tabla Resumen ────────────────────────────────────────────────────────────
 function renderTable() {
   const tbody = document.getElementById('tableBody');
@@ -269,6 +294,13 @@ function renderTable() {
     grouped[g].push(r);
   });
 
+  let totalCosto = 0;
+
+  if (Object.keys(grouped).length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-500">No hay datos para mostrar</td></tr>`;
+    return;
+  }
+
   Object.keys(grouped).sort().forEach(tipoMtto => {
     const rows = grouped[tipoMtto];
     const groupRow = document.createElement('tr');
@@ -279,6 +311,10 @@ function renderTable() {
     rows.forEach(row => {
       const estatus = getValue(row, 'Estatus') || 'Pendiente';
       const isExecuted = estatus.toLowerCase().includes('ejecutado');
+      const costoRaw = getValue(row, 'Costo');
+      const costoNum = parseFloat(String(costoRaw).replace(/[^0-9.-]/g, '')) || 0;
+      totalCosto += costoNum;
+
       const tr = document.createElement('tr');
       tr.className = 'hover:bg-gray-50 border-b';
       tr.innerHTML = `
@@ -288,7 +324,7 @@ function renderTable() {
         <td class="p-4">${getValue(row, 'Tipo')}</td>
         <td class="p-4">${getValue(row, 'Tipo mtto')}</td>
         <td class="p-4 text-right">${getValue(row, 'Hr/Km planificado')}</td>
-        <td class="p-4 text-right">${getValue(row, 'Registro')}</td>
+        <td class="p-4 text-right font-medium">${formatCosto(costoRaw)}</td>
         <td class="p-4 text-center">
           <span class="px-3 py-1 rounded-full text-xs font-medium ${isExecuted ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}">
             ${estatus}
@@ -299,9 +335,14 @@ function renderTable() {
     });
   });
 
-  if (Object.keys(grouped).length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-500">No hay datos para mostrar</td></tr>`;
-  }
+  // Fila de total inversión
+  const totalRow = document.createElement('tr');
+  totalRow.className = 'bg-blue-700 text-white font-bold';
+  totalRow.innerHTML = `
+    <td colspan="6" class="p-4 text-right text-sm tracking-wide">INVERSIÓN TOTAL DEL PERIODO</td>
+    <td class="p-4 text-right text-lg">${totalCosto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    <td colspan="2" class="p-4"></td>`;
+  tbody.appendChild(totalRow);
 }
 
 // ─── Indicador de Cumplimiento por Tipo de Equipo ────────────────────────────
@@ -330,16 +371,23 @@ function isExcluded(row) {
 }
 
 function classifyStatus(row) {
-  const registro = getValue(row, 'Registro');
+  const costo = getValue(row, 'Costo');
   const estatus = getValue(row, 'Estatus').toLowerCase();
 
-  if (registro && registro !== '' && registro !== '0') return 'ejecutado';
+  if (costo && costo !== '' && costo !== '0') return 'ejecutado';
   if (estatus.includes('tolerancia')) return 'tolerancia';
   return 'vencido';
 }
 
 function renderIndicador() {
-  const rows = allData.filter(r => !isExcluded(r));
+  const rows = allData.filter(r => {
+    if (isExcluded(r)) return false;
+    if (indMesValue) {
+      const rowMes = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
+      if (rowMes !== indMesValue) return false;
+    }
+    return true;
+  });
 
   // Agrupar por tipo
   const grupos = {};
