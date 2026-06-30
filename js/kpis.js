@@ -34,11 +34,20 @@ function KPIsHistoricos() {
   meses.forEach(mes => {
     const d = APP.metricasPorMes[mes];
     tProg += d.programados; tEjec += d.ejecutados; tTol += d.tolerancia; tPend += d.pendientes;
-    const cumpl = pct(d.ejecutados + d.tolerancia, d.programados);
+
+    // Para filas congeladas usar el % fijo del momento del cierre; para vivas, calcular
+    const cumpl = d.esHistorico && d.cumplFijo !== undefined
+      ? d.cumplFijo
+      : pct(d.ejecutados + d.tolerancia, d.programados);
+
+    const lockBadge = d.esHistorico
+      ? `<span title="Cierre congelado" style="font-size:0.7rem;background:#dbeafe;color:#1d4ed8;padding:2px 6px;border-radius:999px;margin-left:6px">🔒 cerrado</span>`
+      : `<span title="Datos en vivo" style="font-size:0.7rem;background:#dcfce7;color:#15803d;padding:2px 6px;border-radius:999px;margin-left:6px">● vivo</span>`;
+
     const tr = document.createElement('tr');
-    tr.className = 'border-b hover:bg-gray-50 transition-colors';
+    tr.className = `border-b transition-colors ${d.esHistorico ? 'bg-blue-50/50 hover:bg-blue-50' : 'hover:bg-gray-50'}`;
     tr.innerHTML = `
-      <td class="p-4 font-medium text-gray-800">${mes}</td>
+      <td class="p-4 font-medium text-gray-800">${mes}${lockBadge}</td>
       <td class="p-4 text-center text-gray-700">${d.programados}</td>
       <td class="p-4 text-center font-semibold text-green-700">${d.ejecutados}</td>
       <td class="p-4 text-center font-semibold text-amber-600">${d.tolerancia}</td>

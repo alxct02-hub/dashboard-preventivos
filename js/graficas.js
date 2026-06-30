@@ -87,7 +87,10 @@ function _graficaTendencia() {
   const vencData = meses.map(m => APP.metricasPorMes[m].pendientes);
   const cumplData = meses.map(m => {
     const d = APP.metricasPorMes[m];
-    return pct(d.ejecutados + d.tolerancia, d.programados);
+    // Usar el % fijo si el mes fue cerrado; sino calcular en vivo
+    return d.esHistorico && d.cumplFijo !== undefined
+      ? d.cumplFijo
+      : pct(d.ejecutados + d.tolerancia, d.programados);
   });
 
   APP.charts.tendencia = new Chart(document.getElementById('chartTendencia'), {

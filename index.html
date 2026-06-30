@@ -140,12 +140,22 @@
         </div>
       </div>
 
-      <!-- FASE 4: Cierre Mensual -->
+      <!-- FASE 4 + 7: Cierre Mensual con botones Cerrar Mes y Exportar -->
       <div class="mb-8 bg-white rounded-2xl shadow overflow-hidden">
-        <div class="p-5 border-b bg-gray-50 flex items-center gap-2">
+        <div class="p-5 border-b bg-gray-50 flex flex-wrap items-center gap-3">
           <i class="ti ti-calendar-stats text-blue-700 text-xl"></i>
           <h3 class="font-semibold text-lg text-gray-800">Cierre Mensual</h3>
-          <span class="text-xs text-gray-400 ml-1">— generado automáticamente sobre el histórico completo</span>
+          <span id="historicoBadge" class="hidden text-xs bg-blue-100 text-blue-700 font-semibold px-3 py-1 rounded-full"></span>
+          <div class="ml-auto flex items-center gap-2">
+            <button onclick="abrirModalCierreMes()"
+                    class="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+              <i class="ti ti-lock-square text-base"></i> Cerrar Mes
+            </button>
+            <button onclick="exportarExcelConHistorico()"
+                    class="flex items-center gap-1.5 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+              <i class="ti ti-file-download text-base"></i> Exportar Excel
+            </button>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table id="cierreMensualTable" class="w-full text-sm">
@@ -350,9 +360,49 @@
   </div><!-- /dashboard -->
 </div>
 
+<!-- Modal: Cerrar Mes (FASE 7) -->
+<div id="cerrarMesModal"
+     class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+     onclick="if(event.target===this)cerrarModal()">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between p-5 border-b">
+      <div class="flex items-center gap-2">
+        <i class="ti ti-lock-square text-blue-700 text-xl"></i>
+        <h3 class="font-bold text-gray-800 text-lg">Cerrar Mes</h3>
+      </div>
+      <button onclick="cerrarModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+    </div>
+
+    <!-- Body -->
+    <div class="p-5">
+      <label class="text-sm font-semibold text-gray-600 block mb-1">Mes a congelar:</label>
+      <select id="cerrarMesSelect"
+              class="border rounded-lg p-2.5 w-full text-sm mb-4"
+              onchange="actualizarPreviewCierre()"></select>
+
+      <div id="cerrarMesPreview" class="bg-gray-50 rounded-xl p-4 text-sm"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex gap-3 justify-end p-5 border-t bg-gray-50 rounded-b-2xl">
+      <button onclick="cerrarModal()"
+              class="px-5 py-2 text-gray-600 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">
+        Cancelar
+      </button>
+      <button onclick="confirmarCierreMes()"
+              class="px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-semibold text-sm">
+        Confirmar Cierre
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Módulos JS — carga en orden de dependencias -->
 <script src="js/estado.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/historico.js"></script>
 <script src="js/procesamiento.js"></script>
 <script src="js/datos.js"></script>
 <script src="js/configuracion.js"></script>

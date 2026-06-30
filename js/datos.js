@@ -6,14 +6,21 @@ document.getElementById('fileInput').addEventListener('change', function (e) {
   const reader = new FileReader();
   reader.onload = function (ev) {
     try {
-      const data = new Uint8Array(ev.target.result);
+      const data     = new Uint8Array(ev.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const parsed = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-      if (parsed.length === 0) { alert('El archivo no contiene datos.'); return; }
-      APP.allData = parsed;
-      saveToStorage(APP.allData, file.name);
+
+      // Leer hoja DATA (primera hoja, o la que se llame DATA)
+      const dataSheet = workbook.SheetNames.find(n => n.trim().toUpperCase() === 'DATA') ?? workbook.SheetNames[0];
+      const parsed = XLSX.utils.sheet_to_json(workbook.Sheets[dataSheet], { defval: '' });
+      if (parsed.length === 0) { alert('El archivo no contiene datos en la hoja DATA.'); return; }
+
+      APP.allData      = parsed;
       APP.filteredData = [...APP.allData];
+
+      // Leer hoja HISTORICO si existe (FASE 7)
+      cargarHistorico(workbook);
+
+      saveToStorage(APP.allData, file.name);
       Configuracion();
       renderDashboard();
     } catch (err) {
@@ -30,7 +37,7 @@ function CargaDatos() {
 
 function saveToStorage(data, filename) {
   try {
-    const payload = { data, filename, savedAt: new Date().toLocaleString('es-VE') };
+    const payload = { data, filename, savedAt: new Date().toLocaleString('es-VE'), historico: APP.historico };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     showStorageStatus(filename, payload.savedAt);
   } catch { /* archivo muy grande para localStorage */ }
@@ -42,8 +49,10 @@ function loadFromStorage() {
     if (!raw) return false;
     const payload = JSON.parse(raw);
     if (!payload.data || payload.data.length === 0) return false;
-    APP.allData = payload.data;
+    APP.allData      = payload.data;
     APP.filteredData = [...APP.allData];
+    APP.historico    = payload.historico || [];   // restaurar histórico guardado
+    _actualizarBadgeHistorico();
     showStorageStatus(payload.filename, payload.savedAt);
     Configuracion();
     renderDashboard();
@@ -60,9 +69,11 @@ function showStorageStatus(filename, savedAt) {
 function clearStoredData() {
   if (!confirm('¿Deseas eliminar los datos guardados? Deberás cargar el archivo de nuevo.')) return;
   localStorage.removeItem(STORAGE_KEY);
-  APP.allData = [];
+  APP.allData      = [];
   APP.filteredData = [];
+  APP.historico    = [];
   document.getElementById('dashboard').classList.add('hidden');
   document.getElementById('dataStatus').classList.add('hidden');
   document.getElementById('fileInput').value = '';
+  _actualizarBadgeHistorico();
 }

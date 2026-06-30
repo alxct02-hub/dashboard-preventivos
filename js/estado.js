@@ -6,6 +6,7 @@ const APP = {
   indMesValue: '',
   metricas: {},
   metricasPorMes: {},
+  historico: [],       // filas congeladas de la hoja HISTORICO
 };
 
 const STORAGE_KEY = 'mant_preventivo_data';

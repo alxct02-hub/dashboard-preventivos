@@ -1,4 +1,4 @@
-// js/procesamiento.js — FASE 2: Capa de procesamiento de datos
+// js/procesamiento.js — FASE 2 + 7: Capa de procesamiento con soporte HISTORICO
 
 function procesarDatos() {
   const fd = APP.filteredData;
@@ -9,34 +9,19 @@ function procesarDatos() {
   const pendientes    = fd.filter(esVencido).length;
   const reprogramados = fd.filter(r => getValue(r, 'Estatus').toLowerCase().includes('reprogramado')).length;
   const costoTotal    = fd.reduce((s, r) => s + parseCosto(r), 0);
+  const backlog       = calcularBacklog(fd);
 
-  // Backlog: vencidos de meses anteriores al más reciente en filteredData
-  const backlog = calcularBacklog(fd);
+  // Histórico mergeado: HISTORICO (congelado) + meses vivos de DATA
+  APP.metricasPorMes = calcularMetricasPorMesCompleto();
 
-  // Cumplimiento acumulado histórico (sobre allData completo)
-  const ejAll  = APP.allData.filter(esEjecutado).length;
-  const tolAll = APP.allData.filter(esEnTolerancia).length;
-  const cumplimientoAcum = pct(ejAll + tolAll, APP.allData.length);
+  // Cumplimiento acumulado: usa el histórico mergeado para incluir cierres congelados
+  const vals       = Object.values(APP.metricasPorMes);
+  const ejAcum     = vals.reduce((s, d) => s + d.ejecutados, 0);
+  const tolAcum    = vals.reduce((s, d) => s + d.tolerancia, 0);
+  const progAcum   = vals.reduce((s, d) => s + d.programados, 0);
+  const cumplimientoAcum = pct(ejAcum + tolAcum, progAcum);
 
   APP.metricas = { programados, ejecutados, enTolerancia, pendientes, reprogramados, costoTotal, backlog, cumplimientoAcum };
-
-  // Histórico mensual (sobre allData para tabla de cierre y tendencia)
-  APP.metricasPorMes = calcularMetricasPorMes(APP.allData);
-}
-
-function calcularMetricasPorMes(data) {
-  const porMes = {};
-  data.forEach(row => {
-    const key = mesAñoKey(row);
-    if (!key) return;
-    if (!porMes[key]) porMes[key] = { programados: 0, ejecutados: 0, tolerancia: 0, pendientes: 0, costo: 0 };
-    porMes[key].programados++;
-    if (esEjecutado(row))     porMes[key].ejecutados++;
-    else if (esEnTolerancia(row)) porMes[key].tolerancia++;
-    else                      porMes[key].pendientes++;
-    porMes[key].costo += parseCosto(row);
-  });
-  return porMes;
 }
 
 function calcularBacklog(data) {
