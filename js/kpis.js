@@ -1,0 +1,133 @@
+// js/kpis.js — KPIs principales + KPIsHistoricos (Cierre Mensual) + tabla de detalle
+
+// FASE 3: KPIs actuales y nuevos
+function KPIs() {
+  const m = APP.metricas;
+
+  // Existentes
+  document.getElementById('totalServicios').textContent = m.programados;
+  document.getElementById('ejecutados').textContent = m.ejecutados;
+  document.getElementById('pendientes').textContent = m.pendientes;
+  document.getElementById('porcentaje').textContent =
+    m.programados ? Math.round((m.ejecutados / m.programados) * 100) + '%' : '0%';
+
+  // Nuevos — FASE 3
+  document.getElementById('kpiTolerancia').textContent = m.enTolerancia;
+  document.getElementById('kpiBacklog').textContent = m.backlog;
+  document.getElementById('kpiReprogramados').textContent = m.reprogramados;
+  document.getElementById('kpiCumplimientoAcum').textContent = fmtPct(m.cumplimientoAcum);
+}
+
+// FASE 4: Cierre mensual histórico (usa allData completo)
+function KPIsHistoricos() {
+  const tbody = document.getElementById('cierreMensualBody');
+  tbody.innerHTML = '';
+
+  const meses = Object.keys(APP.metricasPorMes).sort(sortMesAño);
+  if (meses.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-400">Sin datos históricos disponibles</td></tr>`;
+    return;
+  }
+
+  let tProg = 0, tEjec = 0, tTol = 0, tPend = 0;
+
+  meses.forEach(mes => {
+    const d = APP.metricasPorMes[mes];
+    tProg += d.programados; tEjec += d.ejecutados; tTol += d.tolerancia; tPend += d.pendientes;
+    const cumpl = pct(d.ejecutados + d.tolerancia, d.programados);
+    const tr = document.createElement('tr');
+    tr.className = 'border-b hover:bg-gray-50 transition-colors';
+    tr.innerHTML = `
+      <td class="p-4 font-medium text-gray-800">${mes}</td>
+      <td class="p-4 text-center text-gray-700">${d.programados}</td>
+      <td class="p-4 text-center font-semibold text-green-700">${d.ejecutados}</td>
+      <td class="p-4 text-center font-semibold text-amber-600">${d.tolerancia}</td>
+      <td class="p-4 text-center font-semibold text-red-600">${d.pendientes}</td>
+      <td class="p-4 text-center">
+        <span class="font-bold text-base" style="color:${calColor(cumpl)}">${fmtPct(cumpl)}</span>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Fila total
+  const cumplTotal = pct(tEjec + tTol, tProg);
+  const tr = document.createElement('tr');
+  tr.className = 'font-bold';
+  tr.style.background = '#1e3a5f';
+  tr.style.color = 'white';
+  tr.innerHTML = `
+    <td class="p-4">Total acumulado</td>
+    <td class="p-4 text-center">${tProg}</td>
+    <td class="p-4 text-center">${tEjec}</td>
+    <td class="p-4 text-center">${tTol}</td>
+    <td class="p-4 text-center">${tPend}</td>
+    <td class="p-4 text-center">${fmtPct(cumplTotal)}</td>`;
+  tbody.appendChild(tr);
+}
+
+// Tabla de detalle de servicios
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+
+  const grouped = {};
+  APP.filteredData.forEach(r => {
+    const g = getValue(r, 'Tipo mtto') || 'Sin tipo mtto';
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push(r);
+  });
+
+  const claves = Object.keys(grouped).sort();
+  if (claves.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-400">No hay datos para mostrar</td></tr>`;
+    return;
+  }
+
+  let totalCosto = 0;
+
+  claves.forEach(tipoMtto => {
+    const rows = grouped[tipoMtto];
+
+    const groupRow = document.createElement('tr');
+    groupRow.className = 'bg-indigo-50 font-semibold';
+    groupRow.innerHTML = `<td colspan="9" class="p-4 text-base">Tipo Mtto: ${tipoMtto} <span class="text-sm font-normal text-gray-500">(${rows.length} servicios)</span></td>`;
+    tbody.appendChild(groupRow);
+
+    rows.forEach(row => {
+      const estatus = getValue(row, 'Estatus') || 'Pendiente';
+      const costo = getValue(row, 'Costo');
+      totalCosto += parseCosto(row);
+
+      let badgeCls = 'bg-red-100 text-red-700';
+      if (esEjecutado(row))    badgeCls = 'bg-green-100 text-green-700';
+      else if (esEnTolerancia(row)) badgeCls = 'bg-amber-100 text-amber-700';
+
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 border-b transition-colors';
+      tr.innerHTML = `
+        <td class="p-4 pl-8">${getValue(row, 'Mes')}/${getValue(row, 'Año')}</td>
+        <td class="p-4">${getValue(row, 'Ubicación')}</td>
+        <td class="p-4 font-medium">${getValue(row, 'Economico')}</td>
+        <td class="p-4">${getValue(row, 'Tipo')}</td>
+        <td class="p-4">${getValue(row, 'Tipo mtto')}</td>
+        <td class="p-4 text-right">${getValue(row, 'Hr/Km planificado')}</td>
+        <td class="p-4 text-right font-medium">${formatCosto(costo)}</td>
+        <td class="p-4 text-center">
+          <span class="px-3 py-1 rounded-full text-xs font-medium ${badgeCls}">${estatus}</span>
+        </td>
+        <td class="p-4">${getValue(row, 'Taller')}</td>`;
+      tbody.appendChild(tr);
+    });
+  });
+
+  // Fila inversión total
+  const totalRow = document.createElement('tr');
+  totalRow.style.background = '#1e3a5f';
+  totalRow.style.color = 'white';
+  totalRow.className = 'font-bold';
+  totalRow.innerHTML = `
+    <td colspan="6" class="p-4 text-right text-sm tracking-wide">INVERSIÓN TOTAL DEL PERIODO</td>
+    <td class="p-4 text-right text-lg">${totalCosto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    <td colspan="2" class="p-4"></td>`;
+  tbody.appendChild(totalRow);
+}
