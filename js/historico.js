@@ -21,38 +21,6 @@ function cargarHistorico(workbook) {
   _actualizarBadgeHistorico();
 }
 
-// Merge HISTORICO (congelado) + meses activos de DATA (calculado en vivo)
-function calcularMetricasPorMesCompleto() {
-  // --- Calcular desde DATA ---
-  const dataMeses = {};
-  APP.allData.forEach(row => {
-    const key = mesAñoKey(row);
-    if (!key) return;
-    if (!dataMeses[key]) dataMeses[key] = { programados: 0, ejecutados: 0, tolerancia: 0, pendientes: 0, costo: 0, esHistorico: false };
-    dataMeses[key].programados++;
-    if (esEjecutado(row))          dataMeses[key].ejecutados++;
-    else if (esEnTolerancia(row))  dataMeses[key].tolerancia++;
-    else                           dataMeses[key].pendientes++;
-    dataMeses[key].costo += parseCosto(row);
-  });
-
-  // --- HISTORICO sobrescribe (datos congelados son inmutables) ---
-  const merged = { ...dataMeses };
-  APP.historico.forEach(r => {
-    const key = `${r.Mes}/${r.Año}`;
-    merged[key] = {
-      programados:  r.Programados,
-      ejecutados:   r.Ejecutados,
-      tolerancia:   r.Tolerancia,
-      pendientes:   r.Pendientes,
-      cumplFijo:    r.Cumplimiento, // valor fijo del momento del cierre
-      costo:        dataMeses[key] ? dataMeses[key].costo : 0,
-      esHistorico:  true,
-    };
-  });
-  return merged;
-}
-
 // ─── Modal Cerrar Mes ─────────────────────────────────────────────────────────
 
 function abrirModalCierreMes() {
@@ -80,11 +48,13 @@ function cerrarModal() {
 function actualizarPreviewCierre() {
   const mesKey = document.getElementById('cerrarMesSelect').value;
   if (!mesKey) return;
-  const rows = APP.allData.filter(r => mesAñoKey(r) === mesKey);
+
+  // Usar clasificación
+  const rows = APP.clasificados.filter(r => mesAñoKey(r) === mesKey);
   const prog  = rows.length;
-  const ejec  = rows.filter(esEjecutado).length;
-  const tol   = rows.filter(esEnTolerancia).length;
-  const pend  = rows.filter(esVencido).length;
+  const ejec  = rows.filter(x => x._cls.ejecutado).length;
+  const tol   = rows.filter(x => x._cls.tolerancia).length;
+  const pend  = rows.filter(x => x._cls.vencido).length;
   const cumpl = pct(ejec + tol, prog);
 
   document.getElementById('cerrarMesPreview').innerHTML = `
@@ -130,11 +100,12 @@ function confirmarCierreMes() {
     APP.historico.splice(existe, 1);
   }
 
-  const rows  = APP.allData.filter(r => mesAñoKey(r) === mesKey);
+  // Usar clasificación para calcular el cierre
+  const rows  = APP.clasificados.filter(r => mesAñoKey(r) === mesKey);
   const prog  = rows.length;
-  const ejec  = rows.filter(esEjecutado).length;
-  const tol   = rows.filter(esEnTolerancia).length;
-  const pend  = rows.filter(esVencido).length;
+  const ejec  = rows.filter(x => x._cls.ejecutado).length;
+  const tol   = rows.filter(x => x._cls.tolerancia).length;
+  const pend  = rows.filter(x => x._cls.vencido).length;
   const cumpl = pct(ejec + tol, prog);
 
   APP.historico.push({ Año: año, Mes: mes, Programados: prog, Ejecutados: ejec, Tolerancia: tol, Pendientes: pend, Cumplimiento: cumpl });

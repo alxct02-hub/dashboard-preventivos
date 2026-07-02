@@ -1,19 +1,19 @@
 // js/kpis.js — KPIs principales + KPIsHistoricos (Cierre Mensual) + tabla de detalle
 
-// FASE 3: KPIs actuales y nuevos
+// FASE 3: KPIs actuales y nuevos (solo muestran, no calculan)
 function KPIs() {
   const m = APP.metricas;
 
   // Existentes
   document.getElementById('totalServicios').textContent = m.programados;
   document.getElementById('ejecutados').textContent = m.ejecutados;
-  document.getElementById('pendientes').textContent = m.pendientes;
+  document.getElementById('pendientes').textContent = m.vencidos;   // vencidos = pendientes sin tolerancia
   document.getElementById('porcentaje').textContent =
     m.programados ? Math.round((m.ejecutados / m.programados) * 100) + '%' : '0%';
 
   // Nuevos — FASE 3
   document.getElementById('kpiTolerancia').textContent = m.enTolerancia;
-  document.getElementById('kpiBacklog').textContent = m.backlog;
+  document.getElementById('kpiBacklog').textContent = m.heredados;   // heredados = mes > mesKPI y pendiente
   document.getElementById('kpiReprogramados').textContent = m.reprogramados;
   document.getElementById('kpiCumplimientoAcum').textContent = fmtPct(m.cumplimientoAcum);
 }
@@ -107,9 +107,11 @@ function renderTable() {
       const costo = getValue(row, 'Costo');
       totalCosto += parseCosto(row);
 
+      // Usar clasificación si está disponible
+      const cls = row._cls || clasificarServicio(row);
       let badgeCls = 'bg-red-100 text-red-700';
-      if (esEjecutado(row))    badgeCls = 'bg-green-100 text-green-700';
-      else if (esEnTolerancia(row)) badgeCls = 'bg-amber-100 text-amber-700';
+      if (cls.ejecutado)   badgeCls = 'bg-green-100 text-green-700';
+      else if (cls.tolerancia) badgeCls = 'bg-amber-100 text-amber-700';
 
       const tr = document.createElement('tr');
       tr.className = 'hover:bg-gray-50 border-b transition-colors';

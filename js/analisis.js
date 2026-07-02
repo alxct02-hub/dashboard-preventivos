@@ -23,7 +23,6 @@ function _generarInsights() {
   const insights = [];
   const m   = APP.metricas;
   const pm  = APP.metricasPorMes;
-  const fd  = APP.filteredData;
   const meses = Object.keys(pm).sort(sortMesAño);
 
   if (meses.length === 0 || m.programados === 0) {
@@ -76,28 +75,29 @@ function _generarInsights() {
     });
   }
 
-  // 4. Backlog heredado
-  if (m.backlog > 0) {
+  // 4. Backlog heredado (servicios heredados de meses anteriores)
+  if (m.heredados > 0) {
     insights.push({
       icono: '📦',
       titulo: 'Backlog heredado detectado',
-      texto: `Se identificaron <strong>${m.backlog}</strong> servicio(s) vencido(s) de meses anteriores sin ejecutar. Representan compromisos de mantenimiento no cumplidos que requieren atención prioritaria.`
+      texto: `Se identificaron <strong>${m.heredados}</strong> servicio(s) heredado(s) de meses anteriores sin ejecutar (Mes > Mes KPI y estatus Pendiente). Representan compromisos de mantenimiento no cumplidos que requieren atención prioritaria.`
     });
   } else {
     insights.push({
       icono: '🎯',
       titulo: 'Sin backlog heredado',
-      texto: 'No se identifican servicios vencidos de períodos anteriores. El equipo ha gestionado eficientemente los compromisos de mantenimiento.'
+      texto: 'No se identifican servicios heredados de períodos anteriores. El equipo ha gestionado eficientemente los compromisos de mantenimiento.'
     });
   }
 
-  // 5. Taller con mejor desempeño (filteredData)
+  // 5. Taller con mejor desempeño (usa clasificación)
+  const cf = APP.clasificadosFiltrados.length > 0 ? APP.clasificadosFiltrados : APP.filteredData.map(r => ({ ...r, _cls: clasificarServicio(r) }));
   const porTaller = {};
-  fd.forEach(r => {
+  cf.forEach(r => {
     const t = getValue(r, 'Taller') || 'Sin asignar';
     if (!porTaller[t]) porTaller[t] = { ejec: 0, total: 0 };
     porTaller[t].total++;
-    if (esEjecutado(r)) porTaller[t].ejec++;
+    if (r._cls && r._cls.ejecutado) porTaller[t].ejec++;
   });
   const talleresLista = Object.keys(porTaller).filter(t => porTaller[t].total >= 2);
   if (talleresLista.length > 0) {
@@ -125,9 +125,9 @@ function _generarInsights() {
     });
   }
 
-  // 7. Tipo de equipo con mayor cantidad de vencidos (en filteredData, si hay indicador disponible)
+  // 7. Tipo de equipo con mayor cantidad de vencidos (usa clasificación)
   const porTipoVenc = {};
-  fd.filter(esVencido).forEach(r => {
+  cf.filter(r => r._cls && r._cls.vencido).forEach(r => {
     const cfg = classifyTipo(getValue(r, 'Tipo'));
     const label = cfg ? cfg.label.replace('\n', ' ') : 'Otros';
     porTipoVenc[label] = (porTipoVenc[label] || 0) + 1;

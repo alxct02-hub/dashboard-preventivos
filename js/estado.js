@@ -2,11 +2,13 @@
 const APP = {
   allData: [],
   filteredData: [],
+  clasificados: [],          // allData con _cls agregado
+  clasificadosFiltrados: [], // filteredData con _cls agregado
   charts: {},
   indMesValue: '',
   metricas: {},
   metricasPorMes: {},
-  historico: [],       // filas congeladas de la hoja HISTORICO
+  historico: [],             // filas congeladas de la hoja HISTORICO
 };
 
 const STORAGE_KEY = 'mant_preventivo_data';

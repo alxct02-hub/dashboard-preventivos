@@ -24,7 +24,10 @@ function isExcluded(row) {
 }
 
 function renderIndicador() {
-  const rows = APP.allData.filter(r => {
+  // Usar clasificados si están disponibles
+  const fuente = APP.clasificados.length > 0 ? APP.clasificados : APP.allData.map(r => ({ ...r, _cls: clasificarServicio(r) }));
+
+  const rows = fuente.filter(r => {
     if (isExcluded(r)) return false;
     if (APP.indMesValue && mesAñoKey(r) !== APP.indMesValue) return false;
     return true;
@@ -38,9 +41,11 @@ function renderIndicador() {
     if (!cfg) return;
     const g = grupos[cfg.label];
     g.plan++;
-    if (esEjecutado(row))       g.ejec++;
-    else if (esEnTolerancia(row)) g.tol++;
-    else                         g.venc++;
+    // Usar clasificación si existe, si no calcularla
+    const cls = row._cls || clasificarServicio(row);
+    if (cls.ejecutado)   g.ejec++;
+    else if (cls.tolerancia) g.tol++;
+    else                     g.venc++;
   });
 
   let tPlan = 0, tEjec = 0, tTol = 0, tVenc = 0;
