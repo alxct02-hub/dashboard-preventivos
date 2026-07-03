@@ -3,25 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visor Mantenimiento Preventivo</title>
+  <title>ConcrePlus — Gestión de Mantenimiento Preventivo</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; }
+    :root {
+      --navy:  #1e3a5f;
+      --navy2: #162d4e;
+      --orange: #e8870f;
+      --orange2: #d47a0d;
+      --orange-light: #fef3e2;
+    }
 
-    .card { transition: all 0.3s; }
-    .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; }
 
-    .tab-btn { transition: all 0.2s; border-bottom: 3px solid transparent; padding: 12px 24px; font-size: 0.875rem; color: #6b7280; }
-    .tab-btn.active { border-bottom-color: #1e3a5f; color: #1e3a5f; font-weight: 700; }
+    /* Header */
+    .site-header { background: white; border-bottom: 3px solid var(--orange); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+    /* Tarjetas */
+    .card { transition: all 0.25s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 16px 30px -5px rgba(30,58,95,0.15); }
+
+    /* Tabs */
+    .tab-btn { transition: all 0.2s; border-bottom: 3px solid transparent; padding: 13px 22px; font-size: 0.875rem; color: #6b7280; white-space: nowrap; }
+    .tab-btn.active { border-bottom-color: var(--orange); color: var(--orange); font-weight: 700; }
+    .tab-btn:hover:not(.active) { color: var(--navy); background: #f8fafc; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
+    /* Progress bars */
     .progress-bg   { background: #e5e7eb; border-radius: 9999px; height: 8px; min-width: 80px; }
     .progress-fill { height: 8px; border-radius: 9999px; transition: width 0.4s; }
 
+    /* Badge circular */
     .badge-circle {
       width: 34px; height: 34px; border-radius: 50%;
       display: inline-flex; align-items: center; justify-content: center;
@@ -30,34 +47,68 @@
 
     /* Tabla Indicador */
     #ind-table { width: 100%; border-collapse: collapse; }
-    #ind-table thead th { background: #1e3a5f; color: white; padding: 12px 14px; font-size: 0.8rem; text-align: center; white-space: nowrap; }
+    #ind-table thead th { background: var(--navy); color: white; padding: 12px 14px; font-size: 0.8rem; text-align: center; white-space: nowrap; }
     #ind-table thead th:first-child { text-align: left; }
     #ind-table tbody td { padding: 12px 14px; text-align: center; font-size: 0.875rem; border-bottom: 1px solid #f0f0f0; }
     #ind-table tbody td:first-child { text-align: left; }
     #ind-table tbody tr:hover { background: #f8faff; }
-    #ind-table tfoot td { background: #1e3a5f; color: white; font-weight: 700; padding: 12px 14px; text-align: center; font-size: 0.875rem; }
+    #ind-table tfoot td { background: var(--navy); color: white; font-weight: 700; padding: 12px 14px; text-align: center; font-size: 0.875rem; }
     #ind-table tfoot td:first-child { text-align: left; }
 
     /* Tabla Cierre Mensual */
-    #cierreMensualTable thead th { background: #1e3a5f; color: white; }
+    #cierreMensualTable thead th { background: var(--navy); color: white; }
+
+    /* Botón primario */
+    .btn-primary   { background: var(--navy);   color: white; }
+    .btn-primary:hover   { background: var(--navy2); }
+    .btn-accent    { background: var(--orange); color: white; }
+    .btn-accent:hover    { background: var(--orange2); }
+
+    /* Catálogo: utilidades de color de marca */
+    .bg-navy   { background: var(--navy)   !important; }
+    .text-orange { color: var(--orange)    !important; }
+    .border-orange { border-color: var(--orange) !important; }
+
+    /* Filtros select */
+    select, input[type="text"] { transition: border-color 0.2s; }
+    select:focus, input[type="text"]:focus { border-color: var(--orange); outline: 2px solid rgba(232,135,15,0.2); outline-offset: 0; }
+
+    /* Animación fade-in en panels */
+    .tab-panel.active { animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
-<body class="bg-gray-50">
-<div class="max-w-7xl mx-auto p-6">
+<body>
 
-  <h1 class="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-    <i class="ti ti-tools"></i> Visor Mantenimiento Preventivo
-  </h1>
+<!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+<header class="site-header sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-6">
+    <img src="public/ConcrePlus-Logotipo-768x307.png" alt="ConcrePlus" class="h-11 object-contain">
+    <div class="text-right hidden sm:block">
+      <p class="text-xs font-semibold tracking-widest uppercase" style="color:var(--orange)">Sistema de Gestión</p>
+      <p class="text-sm font-bold" style="color:var(--navy)">Mantenimiento Preventivo</p>
+    </div>
+  </div>
+</header>
 
-  <!-- Zona de carga -->
-  <div class="mb-6 bg-white rounded-2xl shadow p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+<div class="max-w-7xl mx-auto px-6 py-6">
+
+  <!-- ══ ZONA DE CARGA ═════════════════════════════════════════════════════ -->
+  <div class="mb-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
     <div class="flex-1">
-      <label class="block text-sm font-semibold text-gray-600 mb-1">Cargar / Actualizar archivo Excel</label>
+      <label class="block text-xs font-semibold tracking-wide uppercase mb-1" style="color:var(--navy)">Cargar / Actualizar Archivo Excel</label>
       <input type="file" id="fileInput" accept=".xlsx"
              class="block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-5 file:rounded-lg
-                    file:border-0 file:text-sm file:font-semibold
-                    file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                    file:mr-4 file:py-2 file:px-5 file:rounded-lg file:border-0
+                    file:text-sm file:font-semibold file:cursor-pointer
+                    file:text-white cursor-pointer"
+             style="--tw-file-btn-bg:var(--orange)"
+             onmouseover=""
+      >
+      <style>
+        #fileInput::file-selector-button { background: var(--orange); color: white; border: none; padding: 8px 20px; border-radius: 8px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: background 0.2s; }
+        #fileInput::file-selector-button:hover { background: var(--orange2); }
+      </style>
     </div>
     <div id="dataStatus" class="hidden text-sm text-gray-500 flex items-center gap-2">
       <i class="ti ti-database-check text-green-500 text-lg"></i>
@@ -68,87 +119,102 @@
     </div>
   </div>
 
-  <!-- Dashboard -->
+  <!-- ══ DASHBOARD ═════════════════════════════════════════════════════════ -->
   <div id="dashboard" class="hidden">
 
-    <!-- Tabs -->
-    <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl shadow-sm">
+    <!-- TABS ──────────────────────────────────────────────────────────── -->
+    <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl shadow-sm overflow-x-auto">
       <button class="tab-btn active" data-tab="resumen">
         <i class="ti ti-layout-dashboard mr-1"></i> Resumen General
       </button>
       <button class="tab-btn" data-tab="indicador">
         <i class="ti ti-chart-bar mr-1"></i> Indicador por Tipo de Equipo
       </button>
+      <button class="tab-btn" data-tab="catalogo">
+        <i class="ti ti-books mr-1"></i> Catálogo de Información
+      </button>
     </div>
 
-    <!-- ======================== PESTAÑA: RESUMEN ======================== -->
+    <!-- ════════════ PESTAÑA: RESUMEN ═══════════════════════════════════ -->
     <div id="tab-resumen" class="tab-panel active">
 
       <!-- Filtros -->
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <select id="mesFilter"    class="border rounded-lg p-3 text-sm"></select>
-        <select id="plantaFilter" class="border rounded-lg p-3 text-sm"></select>
-        <select id="tipoFilter"   class="border rounded-lg p-3 text-sm"></select>
-        <select id="tallerFilter" class="border rounded-lg p-3 text-sm"></select>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <select id="mesFilter"    class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm"></select>
+        <select id="plantaFilter" class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm"></select>
+        <select id="tipoFilter"   class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm"></select>
+        <select id="tallerFilter" class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm"></select>
         <button onclick="resetFilters()"
-                class="bg-gray-700 hover:bg-gray-800 text-white rounded-lg px-6 font-medium text-sm">
-          Limpiar Filtros
+                class="btn-primary rounded-xl px-6 font-semibold text-sm transition-colors shadow-sm">
+          <i class="ti ti-filter-off mr-1"></i> Limpiar
         </button>
       </div>
 
-      <!-- KPIs fila 1 — existentes -->
+      <!-- KPI Fila 1 — existentes -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div class="bg-white p-6 rounded-2xl shadow card">
-          <p class="text-gray-500 text-sm">Total Servicios</p>
-          <p id="totalServicios" class="text-4xl font-bold text-blue-600 mt-2">0</p>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 card">
+          <div class="flex items-center gap-2 mb-2">
+            <i class="ti ti-clipboard-list text-xl" style="color:var(--navy)"></i>
+            <p class="text-gray-500 text-sm">Total Servicios</p>
+          </div>
+          <p id="totalServicios" class="text-4xl font-bold mt-1" style="color:var(--navy)">0</p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow card">
-          <p class="text-gray-500 text-sm">Ejecutados</p>
-          <p id="ejecutados" class="text-4xl font-bold text-green-600 mt-2">0</p>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 card">
+          <div class="flex items-center gap-2 mb-2">
+            <i class="ti ti-circle-check text-green-500 text-xl"></i>
+            <p class="text-gray-500 text-sm">Ejecutados</p>
+          </div>
+          <p id="ejecutados" class="text-4xl font-bold text-green-600 mt-1">0</p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow card">
-          <p class="text-gray-500 text-sm">% Cumplimiento</p>
-          <p id="porcentaje" class="text-4xl font-bold text-emerald-600 mt-2">0%</p>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 card">
+          <div class="flex items-center gap-2 mb-2">
+            <i class="ti ti-chart-pie text-emerald-500 text-xl"></i>
+            <p class="text-gray-500 text-sm">% Cumplimiento</p>
+          </div>
+          <p id="porcentaje" class="text-4xl font-bold text-emerald-600 mt-1">0%</p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow card">
-          <p class="text-gray-500 text-sm">Vencidos</p>
-          <p id="pendientes" class="text-4xl font-bold text-red-500 mt-2">0</p>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 card">
+          <div class="flex items-center gap-2 mb-2">
+            <i class="ti ti-alert-triangle text-red-500 text-xl"></i>
+            <p class="text-gray-500 text-sm">Vencidos</p>
+          </div>
+          <p id="pendientes" class="text-4xl font-bold text-red-500 mt-1">0</p>
         </div>
       </div>
 
-      <!-- KPIs fila 2 — FASE 3: nuevos -->
+      <!-- KPI Fila 2 — nuevos -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white p-6 rounded-2xl shadow card border-t-4 border-amber-400">
+        <div class="bg-white p-6 rounded-2xl shadow-sm card" style="border-top:4px solid #d97706">
           <p class="text-gray-500 text-sm">En Tolerancia</p>
           <p id="kpiTolerancia" class="text-4xl font-bold text-amber-500 mt-2">0</p>
           <p class="text-xs text-gray-400 mt-1">Período seleccionado</p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow card border-t-4 border-red-400">
+        <div class="bg-white p-6 rounded-2xl shadow-sm card" style="border-top:4px solid #dc2626">
           <p class="text-gray-500 text-sm">Heredados</p>
           <p id="kpiBacklog" class="text-4xl font-bold text-red-500 mt-2">0</p>
           <p class="text-xs text-gray-400 mt-1" title="Mes > Mes KPI y Estatus = Pendiente">Mes > Mes KPI &amp; Pendiente</p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow card border-t-4 border-blue-700">
+        <div class="bg-white p-6 rounded-2xl shadow-sm card" style="border-top:4px solid var(--navy)">
           <p class="text-gray-500 text-sm">Cumplimiento Acumulado</p>
-          <p id="kpiCumplimientoAcum" class="text-4xl font-bold text-blue-700 mt-2">0%</p>
+          <p id="kpiCumplimientoAcum" class="text-4xl font-bold mt-2" style="color:var(--navy)">0%</p>
           <p class="text-xs text-gray-400 mt-1">Incl. tolerancias — histórico</p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow card border-t-4 border-orange-400">
+        <div class="bg-white p-6 rounded-2xl shadow-sm card" style="border-top:4px solid var(--orange)">
           <p class="text-gray-500 text-sm">Reprogramaciones</p>
-          <p id="kpiReprogramados" class="text-4xl font-bold text-orange-500 mt-2">0</p>
-          <p class="text-xs text-gray-400 mt-1" title="Mes ≠ Mes KPI (calculado, no depende de columna Reprogramado)">Mes ≠ Mes KPI</p>
+          <p id="kpiReprogramados" class="text-4xl font-bold mt-2" style="color:var(--orange)">0</p>
+          <p class="text-xs text-gray-400 mt-1" title="Mes ≠ Mes KPI">Mes ≠ Mes KPI</p>
         </div>
       </div>
 
-      <!-- FASE 4 + 7: Cierre Mensual con botones Cerrar Mes y Exportar -->
-      <div class="mb-8 bg-white rounded-2xl shadow overflow-hidden">
+      <!-- CIERRE MENSUAL -->
+      <div class="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-5 border-b bg-gray-50 flex flex-wrap items-center gap-3">
-          <i class="ti ti-calendar-stats text-blue-700 text-xl"></i>
+          <i class="ti ti-calendar-stats text-xl" style="color:var(--navy)"></i>
           <h3 class="font-semibold text-lg text-gray-800">Cierre Mensual</h3>
-          <span id="historicoBadge" class="hidden text-xs bg-blue-100 text-blue-700 font-semibold px-3 py-1 rounded-full"></span>
+          <span id="historicoBadge" class="hidden text-xs font-semibold px-3 py-1 rounded-full" style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
           <div class="ml-auto flex items-center gap-2">
             <button onclick="abrirModalCierreMes()"
-                    class="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+                    class="flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors btn-primary">
               <i class="ti ti-lock-square text-base"></i> Cerrar Mes
             </button>
             <button onclick="exportarExcelConHistorico()"
@@ -174,53 +240,53 @@
         </div>
       </div>
 
-      <!-- Gráficas existentes -->
+      <!-- Gráficas -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        <div class="lg:col-span-7 bg-white p-6 rounded-2xl shadow">
-          <h3 class="font-semibold mb-4">Distribución por Tipo de Equipo</h3>
+        <div class="lg:col-span-7 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 class="font-semibold mb-4 text-gray-700">Distribución por Tipo de Equipo</h3>
           <canvas id="chartTipoEquipo" height="120"></canvas>
         </div>
-        <div class="lg:col-span-5 bg-white p-6 rounded-2xl shadow">
-          <h3 class="font-semibold mb-4">Distribución por Tipo de Mantenimiento</h3>
+        <div class="lg:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 class="font-semibold mb-4 text-gray-700">Distribución por Tipo de Mantenimiento</h3>
           <canvas id="chartTipoMantenimiento" height="120"></canvas>
         </div>
-        <div class="lg:col-span-5 bg-white p-6 rounded-2xl shadow">
-          <h3 class="font-semibold mb-4">Distribución por Proveedor (Taller)</h3>
+        <div class="lg:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 class="font-semibold mb-4 text-gray-700">Distribución por Proveedor</h3>
           <canvas id="chartProveedor" height="120"></canvas>
         </div>
-        <div class="lg:col-span-7 bg-white p-6 rounded-2xl shadow">
-          <h3 class="font-semibold mb-4">Distribución por Planta</h3>
+        <div class="lg:col-span-7 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 class="font-semibold mb-4 text-gray-700">Distribución por Planta</h3>
           <canvas id="chartPlanta" height="120"></canvas>
         </div>
       </div>
 
-      <!-- FASE 5: Gráfica de Tendencia -->
-      <div class="mb-8 bg-white p-6 rounded-2xl shadow">
+      <!-- Tendencia Mensual -->
+      <div class="mb-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div class="flex items-center gap-2 mb-4">
-          <i class="ti ti-trending-up text-blue-700 text-xl"></i>
-          <h3 class="font-semibold text-gray-800">Tendencia Mensual — Servicios y % Cumplimiento</h3>
+          <i class="ti ti-trending-up text-xl" style="color:var(--orange)"></i>
+          <h3 class="font-semibold text-gray-700">Tendencia Mensual — Servicios y % Cumplimiento</h3>
         </div>
         <canvas id="chartTendencia" height="70"></canvas>
       </div>
 
       <!-- Tabla de detalle -->
-      <div class="mb-8 bg-white rounded-2xl shadow overflow-hidden">
-        <div class="p-6 border-b bg-gray-50">
-          <h3 class="font-semibold text-lg">Detalle de Servicios</h3>
+      <div class="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-5 border-b bg-gray-50">
+          <h3 class="font-semibold text-lg text-gray-800">Detalle de Servicios</h3>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="bg-gray-100 sticky top-0">
+            <thead class="sticky top-0" style="background:#f8fafc">
               <tr>
-                <th class="p-4 text-left">Mes</th>
-                <th class="p-4 text-left">Planta</th>
-                <th class="p-4 text-left">Equipo</th>
-                <th class="p-4 text-left">Tipo</th>
-                <th class="p-4 text-left">Tipo Mtto</th>
-                <th class="p-4 text-right">Planificado</th>
-                <th class="p-4 text-right">Costo</th>
-                <th class="p-4 text-center">Estatus</th>
-                <th class="p-4 text-left">Taller</th>
+                <th class="p-4 text-left text-gray-600 font-semibold text-xs uppercase">Mes</th>
+                <th class="p-4 text-left text-gray-600 font-semibold text-xs uppercase">Planta</th>
+                <th class="p-4 text-left text-gray-600 font-semibold text-xs uppercase">Equipo</th>
+                <th class="p-4 text-left text-gray-600 font-semibold text-xs uppercase">Tipo</th>
+                <th class="p-4 text-left text-gray-600 font-semibold text-xs uppercase">Tipo Mtto</th>
+                <th class="p-4 text-right text-gray-600 font-semibold text-xs uppercase">Planificado</th>
+                <th class="p-4 text-right text-gray-600 font-semibold text-xs uppercase">Costo</th>
+                <th class="p-4 text-center text-gray-600 font-semibold text-xs uppercase">Estatus</th>
+                <th class="p-4 text-left text-gray-600 font-semibold text-xs uppercase">Taller</th>
               </tr>
             </thead>
             <tbody id="tableBody" class="divide-y"></tbody>
@@ -228,65 +294,66 @@
         </div>
       </div>
 
-      <!-- FASE 6: Panel de Análisis Inteligente -->
-      <div class="bg-white rounded-2xl shadow p-6 mb-4">
+      <!-- Análisis Inteligente -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
         <div class="flex items-center gap-2 mb-5">
-          <i class="ti ti-brain text-blue-700 text-2xl"></i>
+          <i class="ti ti-brain text-2xl" style="color:var(--orange)"></i>
           <h3 class="font-semibold text-lg text-gray-800">Análisis Inteligente</h3>
-          <span class="text-xs text-gray-400 ml-1">— interpretación automática de los datos del período</span>
+          <span class="text-xs text-gray-400 ml-1">— interpretación automática del período</span>
         </div>
         <div id="analisisContenido" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       </div>
 
     </div><!-- /tab-resumen -->
 
-    <!-- ======================== PESTAÑA: INDICADOR ======================== -->
+    <!-- ════════════ PESTAÑA: INDICADOR ══════════════════════════════════ -->
     <div id="tab-indicador" class="tab-panel">
 
-      <!-- Filtro mes/año -->
       <div class="flex items-center gap-4 mb-6">
         <label class="text-sm font-semibold text-gray-600 whitespace-nowrap">Filtrar por mes:</label>
-        <select id="indMesFilter" class="border rounded-lg p-2.5 text-sm min-w-48">
+        <select id="indMesFilter" class="border border-gray-200 rounded-xl p-2.5 text-sm min-w-48 bg-white shadow-sm">
           <option value="">Todos los meses</option>
         </select>
-        <button onclick="resetIndFilter()" class="bg-gray-600 hover:bg-gray-700 text-white rounded-lg px-4 py-2 text-sm font-medium">
+        <button onclick="resetIndFilter()"
+                class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold transition-colors shadow-sm">
           Limpiar
         </button>
       </div>
 
-      <!-- Leyenda + KPIs globales -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        <div class="lg:col-span-5 bg-blue-50 border border-blue-200 rounded-2xl p-5 text-sm text-gray-700">
+        <!-- Leyenda -->
+        <div class="lg:col-span-5 rounded-2xl p-5 text-sm text-gray-700 border" style="background:rgba(30,58,95,0.04);border-color:rgba(30,58,95,0.15)">
           <div class="flex items-start gap-2 mb-2">
-            <i class="ti ti-info-circle text-blue-500 mt-0.5 flex-shrink-0 text-lg"></i>
+            <i class="ti ti-info-circle text-lg flex-shrink-0 mt-0.5" style="color:var(--navy)"></i>
             <span class="font-semibold">Clasificación según la inicial del campo "Tipo".</span>
           </div>
           <ul class="ml-6 space-y-1 list-disc text-gray-600 text-xs">
-            <li><strong>R</strong> = Ollas</li>
             <li><strong>P</strong> = Plantas</li>
+            <li><strong>R</strong> = Ollas</li>
             <li><strong>B</strong> = Bombas</li>
-            <li><strong>T</strong> = Trascabos (Retroexcavadoras)</li>
+            <li><strong>T o EX</strong> = Trascabos (Retroexcavadoras)</li>
             <li><strong>PG o BG</strong> = Equipos Auxiliares</li>
             <li class="text-gray-500 mt-1">Se excluyen registros cuyo servicio contenga <em>"MOTOR"</em>.</li>
           </ul>
         </div>
+        <!-- KPIs globales Indicador -->
         <div class="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div class="bg-white rounded-2xl shadow p-4 flex flex-col items-center gap-2 card">
-            <i class="ti ti-clipboard-list text-blue-400 text-3xl"></i>
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2 card">
+            <i class="ti ti-clipboard-list text-3xl" style="color:var(--navy)"></i>
             <p id="indTotalPlan" class="text-4xl font-bold text-gray-800">0</p>
             <p class="text-xs text-gray-500 text-center">Total Planificados</p>
           </div>
-          <div class="bg-white rounded-2xl shadow p-4 flex flex-col items-center gap-2 card">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2 card">
             <i class="ti ti-circle-check text-green-500 text-3xl"></i>
             <p id="indTotalEjec" class="text-4xl font-bold text-green-600">0</p>
             <p class="text-xs text-gray-500 text-center">Ejecutados</p>
           </div>
-          <div class="bg-white rounded-2xl shadow p-4 flex flex-col items-center gap-2 card">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2 card">
             <i class="ti ti-clock text-amber-400 text-3xl"></i>
             <p id="indTotalTol" class="text-4xl font-bold text-amber-500">0</p>
             <p class="text-xs text-gray-500 text-center">En Tolerancia</p>
           </div>
-          <div class="bg-white rounded-2xl shadow p-4 flex flex-col items-center gap-2 card">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2 card">
             <i class="ti ti-alert-triangle text-red-500 text-3xl"></i>
             <p id="indTotalVenc" class="text-4xl font-bold text-red-600">0</p>
             <p class="text-xs text-gray-500 text-center">Vencidos</p>
@@ -295,7 +362,7 @@
       </div>
 
       <!-- Tabla indicador -->
-      <div class="bg-white rounded-2xl shadow overflow-hidden mb-6">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
         <div class="overflow-x-auto">
           <table id="ind-table">
             <thead>
@@ -317,91 +384,88 @@
         </div>
       </div>
 
-      <!-- Criterios y leyenda -->
+      <!-- Criterios + notas -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white rounded-2xl shadow p-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h4 class="font-bold text-gray-800 mb-3 text-sm tracking-wide uppercase">Criterios de Calificación</h4>
-          <p class="text-xs text-gray-500 mb-3">La calificación se calcula con base en el nivel de avance (% Avance):</p>
+          <p class="text-xs text-gray-500 mb-3">La calificación se calcula con base en % Avance (Ejecutado + Tolerancia):</p>
           <div class="space-y-2 text-sm">
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></span><strong>80% a 100%</strong>&nbsp;= Excelente (Verde)</div>
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0"></span><strong>50% a 79%</strong>&nbsp;= Aceptable (Amarillo)</div>
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></span><strong>0% a 49%</strong>&nbsp;= Deficiente (Rojo)</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></span><strong>80% – 100%</strong>&nbsp;= Excelente</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0"></span><strong>50% – 79%</strong>&nbsp;= Aceptable</div>
+            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></span><strong>0% – 49%</strong>&nbsp;= Deficiente</div>
           </div>
         </div>
-        <div class="bg-white rounded-2xl shadow p-6 text-sm text-gray-600 space-y-3">
-          <div class="flex items-start gap-2">
-            <span class="w-3 h-3 rounded-full bg-green-500 flex-shrink-0 mt-1"></span>
-            <span><strong>Ejecutado:</strong> El campo "Estatus" contiene el valor "Ejecutado".</span>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0 mt-1"></span>
-            <span><strong>En tolerancia:</strong> El campo "Estatus" contiene el valor "Tolerancia".</span>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0 mt-1"></span>
-            <span><strong>Vencidos:</strong> El campo "Estatus" no es "Ejecutado" ni "Tolerancia".</span>
-          </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-sm text-gray-600 space-y-3">
+          <div class="flex items-start gap-2"><span class="w-3 h-3 rounded-full bg-green-500 flex-shrink-0 mt-1"></span><span><strong>Ejecutado:</strong> "Estatus" = Ejecutado.</span></div>
+          <div class="flex items-start gap-2"><span class="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0 mt-1"></span><span><strong>En tolerancia:</strong> "Estatus" = Pendiente + Motivo indica tolerancia (horómetro, km, m³).</span></div>
+          <div class="flex items-start gap-2"><span class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0 mt-1"></span><span><strong>Vencidos:</strong> Pendiente sin motivo de tolerancia.</span></div>
         </div>
       </div>
 
-      <!-- Notas -->
-      <div class="bg-green-50 border border-green-200 rounded-2xl p-5 text-sm text-gray-700">
-        <div class="flex items-center gap-2 font-semibold mb-2">
-          <i class="ti ti-circle-check text-green-500"></i> Notas:
-        </div>
+      <div class="rounded-2xl p-5 text-sm text-gray-700 border" style="background:rgba(22,163,74,0.04);border-color:rgba(22,163,74,0.2)">
+        <div class="flex items-center gap-2 font-semibold mb-2"><i class="ti ti-circle-check text-green-500"></i> Notas:</div>
         <ul class="ml-6 space-y-1 list-disc text-gray-600 text-xs">
-          <li>Registros cuyo servicio contiene "MOTOR" no se incluyen en este indicador.</li>
-          <li>La columna "Estatus" determina la clasificación: "Ejecutado", "Tolerancia" o Vencido (cualquier otro valor).</li>
+          <li>Registros cuyo servicio contiene "MOTOR" no se incluyen.</li>
+          <li>EX (excavadoras) se acumula junto con T (Trascabos/Retro).</li>
+          <li>PG y BG se clasifican como Equipos Auxiliares (no como Plantas ni Bombas).</li>
+          <li>Reprogramado se calcula siempre: Mes ≠ Mes KPI (no depende de la columna Reprogramado).</li>
         </ul>
       </div>
 
     </div><!-- /tab-indicador -->
 
-  </div><!-- /dashboard -->
-</div>
+    <!-- ════════════ PESTAÑA: CATÁLOGO ════════════════════════════════════ -->
+    <div id="tab-catalogo" class="tab-panel">
 
-<!-- Modal: Cerrar Mes (FASE 7) -->
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--navy)">Catálogo de Información</h2>
+          <p class="text-sm text-gray-500 mt-0.5">Administra los valores de referencia del sistema. Todos los cambios se guardan automáticamente.</p>
+        </div>
+      </div>
+
+      <div id="catalogoContenido">
+        <div class="p-12 text-center text-gray-400">
+          <i class="ti ti-loader-2 text-4xl animate-spin mb-3"></i>
+          <p>Cargando catálogos...</p>
+        </div>
+      </div>
+
+    </div><!-- /tab-catalogo -->
+
+  </div><!-- /dashboard -->
+</div><!-- /max-w-7xl -->
+
+<!-- ══ MODAL: Cerrar Mes ════════════════════════════════════════════════════ -->
 <div id="cerrarMesModal"
      class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
      onclick="if(event.target===this)cerrarModal()">
   <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-
-    <!-- Header -->
     <div class="flex items-center justify-between p-5 border-b">
       <div class="flex items-center gap-2">
-        <i class="ti ti-lock-square text-blue-700 text-xl"></i>
+        <i class="ti ti-lock-square text-xl" style="color:var(--navy)"></i>
         <h3 class="font-bold text-gray-800 text-lg">Cerrar Mes</h3>
       </div>
       <button onclick="cerrarModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
     </div>
-
-    <!-- Body -->
     <div class="p-5">
       <label class="text-sm font-semibold text-gray-600 block mb-1">Mes a congelar:</label>
       <select id="cerrarMesSelect"
-              class="border rounded-lg p-2.5 w-full text-sm mb-4"
+              class="border border-gray-200 rounded-xl p-2.5 w-full text-sm mb-4"
               onchange="actualizarPreviewCierre()"></select>
-
       <div id="cerrarMesPreview" class="bg-gray-50 rounded-xl p-4 text-sm"></div>
     </div>
-
-    <!-- Footer -->
     <div class="flex gap-3 justify-end p-5 border-t bg-gray-50 rounded-b-2xl">
-      <button onclick="cerrarModal()"
-              class="px-5 py-2 text-gray-600 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">
-        Cancelar
-      </button>
-      <button onclick="confirmarCierreMes()"
-              class="px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-semibold text-sm">
-        Confirmar Cierre
-      </button>
+      <button onclick="cerrarModal()" class="px-5 py-2 text-gray-600 border border-gray-300 rounded-xl text-sm hover:bg-gray-100 transition-colors">Cancelar</button>
+      <button onclick="confirmarCierreMes()" class="px-6 py-2 text-white rounded-xl font-semibold text-sm transition-colors btn-primary">Confirmar Cierre</button>
     </div>
   </div>
 </div>
 
-<!-- Módulos JS — carga en orden de dependencias -->
+<!-- ══ MÓDULOS JS ════════════════════════════════════════════════════════════ -->
 <script src="js/estado.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/supabase-client.js"></script>
 <script src="js/historico.js"></script>
 <script src="js/procesamiento.js"></script>
 <script src="js/datos.js"></script>
@@ -410,6 +474,7 @@
 <script src="js/graficas.js"></script>
 <script src="js/indicador.js"></script>
 <script src="js/analisis.js"></script>
+<script src="js/catalogo.js"></script>
 <script src="js/exportaciones.js"></script>
 <script src="js/app.js"></script>
 </body>

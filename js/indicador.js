@@ -1,19 +1,25 @@
 // js/indicador.js — Indicador de Cumplimiento por Tipo de Equipo
 
 const TIPO_CONFIG = [
-  { label: 'Plantas',                  badge: 'P', prefixes: ['P'],       badgeColor: '#2563eb', badgeBg: '#dbeafe' },
-  { label: 'Ollas',                    badge: 'R', prefixes: ['R'],       badgeColor: '#16a34a', badgeBg: '#dcfce7' },
-  { label: 'Bombas',                   badge: 'B', prefixes: ['B'],       badgeColor: '#ea580c', badgeBg: '#ffedd5' },
-  { label: 'Trascabos/retro',          badge: 'T', prefixes: ['T'],       badgeColor: '#7c3aed', badgeBg: '#ede9fe' },
-  { label: 'Eq. Auxiliares\n(PG/BG)', badge: 'A', prefixes: ['PG','BG'], badgeColor: '#475569', badgeBg: '#e2e8f0' },
+  // ORDEN VISUAL de la tabla (de arriba a abajo)
+  { label: 'Plantas',                  badge: 'P', prefixes: ['P'],              badgeColor: '#1e3a5f', badgeBg: '#dbeafe' },
+  { label: 'Ollas',                    badge: 'R', prefixes: ['R'],              badgeColor: '#16a34a', badgeBg: '#dcfce7' },
+  { label: 'Bombas',                   badge: 'B', prefixes: ['B'],              badgeColor: '#e8870f', badgeBg: '#fef3e2' },
+  { label: 'Trascabos / Retro',        badge: 'T', prefixes: ['T', 'EX'],        badgeColor: '#7c3aed', badgeBg: '#ede9fe' },
+  { label: 'Eq. Auxiliares (PG/BG)',   badge: 'A', prefixes: ['PG', 'BG'],       badgeColor: '#475569', badgeBg: '#e2e8f0' },
 ];
 
+// Construye la lista de candidatos ordenando los prefijos por longitud descendente.
+// Esto evita que 'P' coincida antes que 'PG', o 'B' antes que 'BG'.
+const _candidatos = TIPO_CONFIG
+  .flatMap(cfg => cfg.prefixes.map(prefix => ({ cfg, prefix })))
+  .sort((a, b) => b.prefix.length - a.prefix.length);
+
 function classifyTipo(tipoVal) {
+  if (!tipoVal) return null;
   const upper = tipoVal.toUpperCase().trim();
-  for (const cfg of TIPO_CONFIG) {
-    for (const prefix of cfg.prefixes) {
-      if (upper.startsWith(prefix)) return cfg;
-    }
+  for (const { cfg, prefix } of _candidatos) {
+    if (upper.startsWith(prefix)) return cfg;
   }
   return null;
 }
@@ -24,8 +30,9 @@ function isExcluded(row) {
 }
 
 function renderIndicador() {
-  // Usar clasificados si están disponibles
-  const fuente = APP.clasificados.length > 0 ? APP.clasificados : APP.allData.map(r => ({ ...r, _cls: clasificarServicio(r) }));
+  const fuente = APP.clasificados.length > 0
+    ? APP.clasificados
+    : APP.allData.map(r => ({ ...r, _cls: clasificarServicio(r) }));
 
   const rows = fuente.filter(r => {
     if (isExcluded(r)) return false;
@@ -39,11 +46,10 @@ function renderIndicador() {
   rows.forEach(row => {
     const cfg = classifyTipo(getValue(row, 'Tipo'));
     if (!cfg) return;
-    const g = grupos[cfg.label];
-    g.plan++;
-    // Usar clasificación si existe, si no calcularla
+    const g   = grupos[cfg.label];
     const cls = row._cls || clasificarServicio(row);
-    if (cls.ejecutado)   g.ejec++;
+    g.plan++;
+    if (cls.ejecutado)       g.ejec++;
     else if (cls.tolerancia) g.tol++;
     else                     g.venc++;
   });
@@ -60,9 +66,9 @@ function renderIndicador() {
   tbody.innerHTML = '';
 
   TIPO_CONFIG.forEach(cfg => {
-    const g = grupos[cfg.label];
+    const g       = grupos[cfg.label];
     const pAvance = pct(g.ejec, g.plan);
-    const pTol    = pct(g.tol, g.plan);
+    const pTol    = pct(g.tol,  g.plan);
     const pVenc   = pct(g.venc, g.plan);
     const calScore = pct(g.ejec + g.tol, g.plan);
 
@@ -71,7 +77,7 @@ function renderIndicador() {
       <td style="padding:14px">
         <div style="display:flex;align-items:center;gap:10px">
           <span class="badge-circle" style="background:${cfg.badgeBg};color:${cfg.badgeColor}">${cfg.badge}</span>
-          <span style="font-weight:500;white-space:pre-line">${cfg.label}</span>
+          <span style="font-weight:500">${cfg.label}</span>
         </div>
       </td>
       <td>${g.plan}</td><td>${g.ejec}</td><td>${g.tol}</td><td>${g.venc}</td>
