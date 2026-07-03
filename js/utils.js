@@ -13,7 +13,7 @@ function parseCosto(row) {
 function formatCosto(val) {
   const n = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
   if (isNaN(n) || n === 0) return '—';
-  return n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function pct(num, den) {

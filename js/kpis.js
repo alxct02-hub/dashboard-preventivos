@@ -138,7 +138,7 @@ function renderTable() {
   totalRow.className = 'font-bold';
   totalRow.innerHTML = `
     <td colspan="6" class="p-4 text-right text-sm tracking-wide">INVERSIÓN TOTAL DEL PERIODO</td>
-    <td class="p-4 text-right text-lg">${totalCosto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    <td class="p-4 text-right text-lg">${formatCosto(totalCosto)}</td>
     <td colspan="2" class="p-4"></td>`;
   tbody.appendChild(totalRow);
 }
