@@ -1,9 +1,8 @@
 // js/supabase-client.js — Cliente Supabase para catálogos
 
-const SUPABASE_URL  = 'https://0ec90b57d6e95fcbda19832f.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJib2x0IiwicmVmIjoiMGVjOTBiNTdkNmU5NWZjYmRhMTk4MzJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODE1NzQsImV4cCI6MjA3NDQ1NzU3NH0.9I8-U0x86Ak8t2DGaIk0HfvTSLsAyzdnz-Nw00mMkKw';
+const SUPABASE_URL  = 'https://quqguldxmijfcpyikveh.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1cWd1bGR4bWlqZmNweWlrdmVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMjY3OTMsImV4cCI6MjA5ODYwMjc5M30.1TOFw8TnhpHlULuxIC56npIYZ_Qwa9P-oQ1aqCEx_ag';
 
-// El CDN de Supabase expone `window.supabase` (objeto con createClient)
 let _db = null;
 function getDB() {
   if (!_db && window.supabase) {
