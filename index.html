@@ -84,6 +84,23 @@
 <header class="site-header sticky top-0 z-40">
   <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-6">
     <img src="public/ConcrePlus-Logotipo-768x307.png" alt="ConcrePlus" class="h-11 object-contain">
+    <!-- Admin session control -->
+    <div class="flex items-center gap-3 ml-auto mr-4">
+      <div id="adminUserInfo" class="hidden items-center gap-2">
+        <i class="ti ti-shield-check text-green-500 text-base flex-shrink-0"></i>
+        <span id="adminEmailDisplay" class="text-gray-600 text-xs font-medium hidden sm:block max-w-[180px] truncate"></span>
+        <button onclick="logoutAdmin()"
+                class="text-xs font-semibold px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+          Salir
+        </button>
+      </div>
+      <button id="adminLoginBtn" onclick="abrirLoginAdmin()"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors hover:bg-gray-50"
+              style="border-color:#cbd5e1;color:var(--navy)">
+        <i class="ti ti-shield text-sm"></i>
+        <span class="hidden sm:inline">Administrador</span>
+      </button>
+    </div>
     <div class="text-right hidden sm:block">
       <p class="text-xs font-semibold tracking-widest uppercase" style="color:var(--orange)">Sistema de Gestión</p>
       <p class="text-sm font-bold" style="color:var(--navy)">Mantenimiento Preventivo</p>
@@ -93,30 +110,48 @@
 
 <div class="max-w-7xl mx-auto px-6 py-6">
 
-  <!-- ══ ZONA DE CARGA ═════════════════════════════════════════════════════ -->
-  <div class="mb-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-    <div class="flex-1">
-      <label class="block text-xs font-semibold tracking-wide uppercase mb-1" style="color:var(--navy)">Cargar / Actualizar Archivo Excel</label>
-      <input type="file" id="fileInput" accept=".xlsx"
-             class="block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-5 file:rounded-lg file:border-0
-                    file:text-sm file:font-semibold file:cursor-pointer
-                    file:text-white cursor-pointer"
-             style="--tw-file-btn-bg:var(--orange)"
-             onmouseover=""
-      >
-      <style>
-        #fileInput::file-selector-button { background: var(--orange); color: white; border: none; padding: 8px 20px; border-radius: 8px; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: background 0.2s; }
-        #fileInput::file-selector-button:hover { background: var(--orange2); }
-      </style>
-    </div>
-    <div id="dataStatus" class="hidden text-sm text-gray-500 flex items-center gap-2">
-      <i class="ti ti-database-check text-green-500 text-lg"></i>
+  <!-- ══ ZONA DE IMPORTACIÓN (solo administrador) ═════════════════════════ -->
+  <div id="importZone" class="hidden mb-4 bg-white rounded-2xl shadow-sm border-2 p-4 flex flex-col sm:flex-row items-center gap-4" style="border-color:var(--orange)">
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--orange-light)">
+        <i class="ti ti-file-spreadsheet" style="color:var(--orange)"></i>
+      </div>
       <div>
-        <span id="dataStatusText" class="block font-medium text-gray-700"></span>
-        <button onclick="clearStoredData()" class="text-red-500 hover:text-red-700 underline text-xs mt-0.5">Limpiar datos guardados</button>
+        <p id="importLabel" class="text-xs font-semibold uppercase tracking-wide" style="color:var(--navy)">Importar archivo Excel (.xlsx)</p>
+        <p class="text-xs text-gray-400 mt-0.5">Sesión de administrador activa</p>
       </div>
     </div>
+    <label id="importBtn" class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-xl text-white text-sm font-semibold transition-colors flex-shrink-0" style="background:var(--orange)">
+      <i class="ti ti-upload text-base"></i> Seleccionar archivo
+      <input type="file" id="fileInput" accept=".xlsx" class="hidden">
+    </label>
+  </div>
+
+  <!-- ══ ESTADO DE DATOS (visible para todos cuando hay datos) ═════════════ -->
+  <div id="dataStatus" class="hidden mb-4 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
+    <i class="ti ti-cloud-check text-green-500 text-xl flex-shrink-0"></i>
+    <div class="flex-1 min-w-0">
+      <span id="dataStatusText" class="block font-medium text-gray-700 text-sm truncate"></span>
+    </div>
+    <button onclick="clearStoredData()" title="Limpiar caché local"
+            class="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">
+      <i class="ti ti-refresh text-base"></i>
+    </button>
+  </div>
+
+  <!-- ══ CARGANDO DESDE FIRESTORE ══════════════════════════════════════════ -->
+  <div id="firestoreLoading" class="hidden mb-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-10 text-center">
+    <div class="inline-flex items-center gap-3">
+      <i class="ti ti-loader-2 text-2xl animate-spin" style="color:var(--orange)"></i>
+      <span class="text-gray-600 font-medium">Cargando información desde la nube...</span>
+    </div>
+  </div>
+
+  <!-- ══ SIN DATOS ══════════════════════════════════════════════════════════ -->
+  <div id="emptyState" class="hidden mb-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+    <i class="ti ti-database-off text-5xl text-gray-200 mb-4 block"></i>
+    <p class="font-semibold text-gray-500 mb-1">No hay datos disponibles</p>
+    <p class="text-sm text-gray-400">El administrador debe importar el archivo Excel para activar el dashboard.</p>
   </div>
 
   <!-- ══ DASHBOARD ═════════════════════════════════════════════════════════ -->
@@ -458,6 +493,49 @@
     <div class="flex gap-3 justify-end p-5 border-t bg-gray-50 rounded-b-2xl">
       <button onclick="cerrarModal()" class="px-5 py-2 text-gray-600 border border-gray-300 rounded-xl text-sm hover:bg-gray-100 transition-colors">Cancelar</button>
       <button onclick="confirmarCierreMes()" class="px-6 py-2 text-white rounded-xl font-semibold text-sm transition-colors btn-primary">Confirmar Cierre</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL ADMIN LOGIN ════════════════════════════════════════════════════ -->
+<div id="loginModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+     style="background:rgba(0,0,0,0.5)" onclick="if(event.target===this)cerrarLoginAdmin()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-[fadeIn_0.15s_ease]">
+
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--orange-light)">
+        <i class="ti ti-shield-lock text-xl" style="color:var(--orange)"></i>
+      </div>
+      <div>
+        <h2 class="text-base font-bold" style="color:var(--navy)">Acceso de Administrador</h2>
+        <p class="text-xs text-gray-400">Ingresa tus credenciales</p>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Correo electrónico</label>
+        <input type="email" id="adminEmailInput" placeholder="admin@concreplus.com" autocomplete="email"
+               class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-colors">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Contraseña</label>
+        <input type="password" id="adminPwd" placeholder="••••••••" autocomplete="current-password"
+               class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-colors">
+      </div>
+      <p id="loginError" class="hidden text-xs text-red-500 font-medium bg-red-50 px-3 py-2 rounded-lg"></p>
+    </div>
+
+    <div class="flex gap-3 mt-6">
+      <button id="loginSubmitBtn" onclick="submitLoginAdmin()"
+              class="flex-1 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+              style="background:var(--navy)">
+        Iniciar sesión
+      </button>
+      <button onclick="cerrarLoginAdmin()"
+              class="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors">
+        Cancelar
+      </button>
     </div>
   </div>
 </div>

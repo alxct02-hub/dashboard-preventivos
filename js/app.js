@@ -1,6 +1,6 @@
 // js/app.js — Orquestación principal del dashboard
 
-// Tabs
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -13,22 +13,103 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// Render principal: orquesta todas las fases
+// ─── Render principal ─────────────────────────────────────────────────────────
 function renderDashboard() {
   document.getElementById('dashboard').classList.remove('hidden');
 
-  procesarDatos();   // FASE 2 — capa de procesamiento
-  KPIs();            // FASE 3 — indicadores clave
-  Graficas();        // FASE 5 — gráficas + tendencia
+  procesarDatos();   // capa de procesamiento
+  KPIs();            // indicadores clave
+  Graficas();        // gráficas + tendencia
   renderTable();     // tabla de detalle
-  KPIsHistoricos();  // FASE 4 — cierre mensual
-  AnalisisIA();      // FASE 6 — análisis inteligente
+  KPIsHistoricos();  // cierre mensual
+  AnalisisIA();      // análisis inteligente
 
   if (document.getElementById('tab-indicador').classList.contains('active')) {
     renderIndicador();
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  CargaDatos();
+// ─── Admin: autenticación ─────────────────────────────────────────────────────
+function abrirLoginAdmin() {
+  document.getElementById('loginModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('adminEmailInput')?.focus(), 50);
+}
+
+function cerrarLoginAdmin() {
+  document.getElementById('loginModal').classList.add('hidden');
+  document.getElementById('loginError').classList.add('hidden');
+  document.getElementById('adminEmailInput').value = '';
+  document.getElementById('adminPwd').value = '';
+}
+
+async function submitLoginAdmin() {
+  const email  = document.getElementById('adminEmailInput').value.trim();
+  const pwd    = document.getElementById('adminPwd').value;
+  const errEl  = document.getElementById('loginError');
+  const btn    = document.getElementById('loginSubmitBtn');
+
+  if (!email || !pwd) {
+    errEl.textContent = 'Completa ambos campos.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  errEl.classList.add('hidden');
+  btn.disabled    = true;
+  btn.textContent = 'Verificando...';
+
+  try {
+    await loginFirebase(email, pwd);
+    cerrarLoginAdmin();
+  } catch {
+    errEl.textContent = 'Correo o contraseña incorrectos.';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Iniciar sesión';
+  }
+}
+
+async function logoutAdmin() {
+  if (!confirm('¿Cerrar sesión de administrador?')) return;
+  await logoutFirebase();
+}
+
+// Callback de firebase.js — se ejecuta cuando cambia la sesión
+window._onAuthChange = function (user) {
+  // Usuarios anónimos (sesión automática para leer Firestore) NO son admin
+  const isAdmin = user && !user.isAnonymous && !!user.email;
+
+  const loginBtn   = document.getElementById('adminLoginBtn');
+  const userInfo   = document.getElementById('adminUserInfo');
+  const emailSpan  = document.getElementById('adminEmailDisplay');
+  const importZone = document.getElementById('importZone');
+
+  loginBtn?.classList.toggle('hidden', isAdmin);
+  userInfo?.classList.toggle('hidden', !isAdmin);
+  if (isAdmin) {
+    userInfo?.classList.add('flex');
+    if (emailSpan) emailSpan.textContent = user.email;
+    importZone?.classList.remove('hidden');
+  } else {
+    userInfo?.classList.remove('flex');
+    importZone?.classList.add('hidden');
+  }
+};
+
+// Enter en el campo contraseña → enviar
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('adminPwd')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitLoginAdmin();
+  });
+  document.getElementById('adminEmailInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('adminPwd')?.focus();
+  });
+});
+
+// ─── Inicio ───────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  // Esperar a que Firebase Auth inicialice (sesión anónima o existente)
+  if (window._authReady) await window._authReady;
+  await CargaDatos();
 });
