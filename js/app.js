@@ -29,6 +29,11 @@ function renderDashboard() {
   }
 }
 
+// ─── Mapeo usuario → email de Firebase (agregar más cuentas aquí si se necesita) ──
+const ADMIN_USERS = {
+  'admin': 'admin@concreplus.com',
+};
+
 // ─── Admin: autenticación ─────────────────────────────────────────────────────
 function abrirLoginAdmin() {
   document.getElementById('loginModal').classList.remove('hidden');
@@ -43,16 +48,19 @@ function cerrarLoginAdmin() {
 }
 
 async function submitLoginAdmin() {
-  const email  = document.getElementById('adminEmailInput').value.trim();
-  const pwd    = document.getElementById('adminPwd').value;
-  const errEl  = document.getElementById('loginError');
-  const btn    = document.getElementById('loginSubmitBtn');
+  const username = document.getElementById('adminEmailInput').value.trim().toLowerCase();
+  const pwd      = document.getElementById('adminPwd').value;
+  const errEl    = document.getElementById('loginError');
+  const btn      = document.getElementById('loginSubmitBtn');
 
-  if (!email || !pwd) {
-    errEl.textContent = 'Completa ambos campos.';
+  if (!username || !pwd) {
+    errEl.textContent = 'Completa usuario y contraseña.';
     errEl.classList.remove('hidden');
     return;
   }
+
+  // Resolver usuario → email de Firebase
+  const email = ADMIN_USERS[username] ?? username;
 
   errEl.classList.add('hidden');
   btn.disabled    = true;
@@ -62,7 +70,7 @@ async function submitLoginAdmin() {
     await loginFirebase(email, pwd);
     cerrarLoginAdmin();
   } catch {
-    errEl.textContent = 'Correo o contraseña incorrectos.';
+    errEl.textContent = 'Usuario o contraseña incorrectos.';
     errEl.classList.remove('hidden');
   } finally {
     btn.disabled    = false;
@@ -89,7 +97,9 @@ window._onAuthChange = function (user) {
   userInfo?.classList.toggle('hidden', !isAdmin);
   if (isAdmin) {
     userInfo?.classList.add('flex');
-    if (emailSpan) emailSpan.textContent = user.email;
+    // Mostrar el nombre de usuario (no el email interno de Firebase)
+    const displayName = Object.keys(ADMIN_USERS).find(u => ADMIN_USERS[u] === user.email) ?? user.email;
+    if (emailSpan) emailSpan.textContent = displayName;
     importZone?.classList.remove('hidden');
   } else {
     userInfo?.classList.remove('flex');
