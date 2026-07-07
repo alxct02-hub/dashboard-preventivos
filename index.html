@@ -168,6 +168,9 @@
       <button class="tab-btn" data-tab="catalogo">
         <i class="ti ti-books mr-1"></i> Catálogo de Información
       </button>
+      <button class="tab-btn" data-tab="historial">
+        <i class="ti ti-history mr-1"></i> Historial por Equipo
+      </button>
     </div>
 
     <!-- ════════════ PESTAÑA: RESUMEN ═══════════════════════════════════ -->
@@ -322,6 +325,7 @@
                 <th class="p-4 text-right text-gray-600 font-semibold text-xs uppercase">Costo</th>
                 <th class="p-4 text-center text-gray-600 font-semibold text-xs uppercase">Estatus</th>
                 <th class="p-4 text-left text-gray-600 font-semibold text-xs uppercase">Taller</th>
+                <th class="p-4 text-center text-gray-600 font-semibold text-xs uppercase">Acciones</th>
               </tr>
             </thead>
             <tbody id="tableBody" class="divide-y"></tbody>
@@ -468,6 +472,47 @@
 
     </div><!-- /tab-catalogo -->
 
+    <!-- ════════════ PESTAÑA: HISTORIAL ══════════════════════════════════════ -->
+    <div id="tab-historial" class="tab-panel">
+
+      <div class="flex items-center gap-4 mb-6">
+        <h2 class="text-xl font-bold" style="color:var(--navy)">Historial por Equipo</h2>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Buscar por código de equipo</label>
+        <div class="flex gap-3">
+          <input type="text" id="historialEquipoInput" placeholder="Ej: EX-07"
+                 class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400">
+          <button onclick="buscarHistorial()" class="px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-colors" style="background:var(--navy)">
+            <i class="ti ti-search mr-1"></i> Buscar
+          </button>
+        </div>
+      </div>
+
+      <div id="historialResultados" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hidden">
+        <div class="p-5 border-b bg-gray-50">
+          <h3 class="font-semibold text-gray-800" id="historialTitulo">Resultados</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead style="background:var(--navy)">
+              <tr>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Fecha</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">OT</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Tipo Mtto</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Estatus</th>
+                <th class="p-3 text-right text-white font-semibold text-xs uppercase">Costo</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Taller</th>
+              </tr>
+            </thead>
+            <tbody id="historialBody" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /tab-historial -->
+
   </div><!-- /dashboard -->
 </div><!-- /max-w-7xl -->
 
@@ -493,6 +538,27 @@
     <div class="flex gap-3 justify-end p-5 border-t bg-gray-50 rounded-b-2xl">
       <button onclick="cerrarModal()" class="px-5 py-2 text-gray-600 border border-gray-300 rounded-xl text-sm hover:bg-gray-100 transition-colors">Cancelar</button>
       <button onclick="confirmarCierreMes()" class="px-6 py-2 text-white rounded-xl font-semibold text-sm transition-colors btn-primary">Confirmar Cierre</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Edición de Registro ═════════════════════════════════════════════ -->
+<div id="edicionModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+     onclick="if(event.target===this)cerrarModalEdicion()">
+  <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+    <div class="flex items-center justify-between p-5 border-b">
+      <div class="flex items-center gap-2">
+        <i class="ti ti-edit text-xl" style="color:var(--orange)"></i>
+        <h3 class="font-bold text-gray-800 text-lg">Editar Registro</h3>
+      </div>
+      <button onclick="cerrarModalEdicion()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+    </div>
+    <div class="p-5 space-y-3" id="edicionCampos">
+      <!-- Campos dinámicos -->
+    </div>
+    <div class="flex gap-3 justify-end p-5 border-t bg-gray-50 rounded-b-2xl">
+      <button onclick="cerrarModalEdicion()" class="px-5 py-2 text-gray-600 border border-gray-300 rounded-xl text-sm hover:bg-gray-100">Cancelar</button>
+      <button onclick="guardarEdicion()" class="px-6 py-2 text-white rounded-xl font-semibold text-sm transition-colors" style="background:var(--navy)">Guardar Cambios</button>
     </div>
   </div>
 </div>

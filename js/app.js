@@ -10,6 +10,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
     if (btn.dataset.tab === 'indicador') renderIndicador();
     if (btn.dataset.tab === 'catalogo')  inicializarCatalogo();
+    if (btn.dataset.tab === 'historial') document.getElementById('historialEquipoInput')?.focus();
   });
 });
 

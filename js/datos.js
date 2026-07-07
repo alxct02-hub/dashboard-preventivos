@@ -62,6 +62,11 @@ async function CargaDatos() {
   _mostrarCargando(true);
   _mostrarSinDatos(false);
 
+  // 0) Cargar estados de meses desde Firestore
+  if (typeof cargarEstadosMesesAsync === 'function') {
+    await cargarEstadosMesesAsync();
+  }
+
   // 1) Intentar Firestore (fuente de verdad)
   try {
     if (typeof cargarUltimoSnapshot === 'function') {
@@ -165,4 +170,137 @@ function _setImportProgress(active, msg = '') {
   const fi  = document.getElementById('fileInput');
   if (lbl) lbl.textContent = active ? msg : 'Importar archivo Excel (.xlsx)';
   if (fi)  fi.disabled = active;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// FASE 6: MODAL DE EDICIÓN
+// ════════════════════════════════════════════════════════════════════════════
+let _idxEdicion = null;
+
+function abrirModalEdicion(idx) {
+  _idxEdicion = idx;
+  const row = APP.allData[idx];
+  if (!row) return;
+
+  const campos = [
+    { key: 'Mes',         label: 'Mes' },
+    { key: 'Año',         label: 'Año' },
+    { key: 'Estatus',     label: 'Estatus' },
+    { key: 'Motivo',      label: 'Motivo' },
+    { key: 'Costo',       label: 'Costo' },
+    { key: 'Taller',      label: 'Taller' },
+    { key: 'Hr/Km planificado', label: 'Hr/Km Planificado' },
+  ];
+
+  const html = campos.map(c => {
+    const val = getValue(row, c.key) ?? '';
+    return `
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">${c.label}</label>
+        <input type="text" id="edit_${c.key.replace(/[^a-zA-Z0-9]/g, '_')}"
+               value="${val}" ${c.key === 'Mes' || c.key === 'Año' ? 'readonly' : ''}
+               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400">
+      </div>`;
+  }).join('');
+
+  document.getElementById('edicionCampos').innerHTML = html;
+  document.getElementById('edicionModal').classList.remove('hidden');
+}
+
+function cerrarModalEdicion() {
+  document.getElementById('edicionModal').classList.add('hidden');
+  _idxEdicion = null;
+}
+
+async function guardarEdicion() {
+  if (_idxEdicion === null) return;
+
+  const row = APP.allData[_idxEdicion];
+  const cambios = { 'Estatus': null, 'Motivo': null, 'Costo': null, 'Taller': null, 'Hr/Km planificado': null };
+
+  Object.keys(cambios).forEach(key => {
+    const input = document.getElementById('edit_' + key.replace(/[^a-zA-Z0-9]/g, '_'));
+    if (input) {
+      cambios[key] = key === 'Costo' ? parseFloat(input.value) || 0 : input.value;
+    }
+  });
+
+  // Actualizar localmente
+  Object.keys(cambios).forEach(key => {
+    const realKey = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase()) || key;
+    row[realKey] = cambios[key];
+  });
+
+  // Guardar en Firestore
+  try {
+    if (typeof editarRegistroFirestore === 'function') {
+      await editarRegistroFirestore(_idxEdicion, row, cambios);
+    }
+  } catch (e) {
+    console.warn('Error guardando en Firestore:', e.message);
+  }
+
+  _persistirCambiosLocales();
+  cerrarModalEdicion();
+  procesarDatos();
+  renderDashboard();
+  mostrarToast('Registro actualizado.', 'ok');
+}
+
+function _persistirCambiosLocales() {
+  _saveToStorage(APP.allData, 'datos_editados');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// FASE 9: HISTORIAL POR EQUIPO
+// ════════════════════════════════════════════════════════════════════════════
+async function buscarHistorial() {
+  const codigo = document.getElementById('historialEquipoInput').value.trim();
+  if (!codigo) {
+    mostrarToast('Ingresa un código de equipo.', 'warn');
+    return;
+  }
+
+  const tbody = document.getElementById('historialBody');
+  tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400">Buscando...</td></tr>';
+  document.getElementById('historialResultados').classList.remove('hidden');
+
+  // Buscar en datos actuales
+  const matches = APP.allData.filter(r => {
+    const equipo = (getValue(r, 'Economico') ?? getValue(r, 'Equipo') ?? '').toString().toLowerCase();
+    return equipo.includes(codigo.toLowerCase());
+  });
+
+  if (matches.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">No se encontraron registros para "${codigo}"</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  matches.forEach(r => {
+    const fecha   = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
+    const ot      = getValue(r, 'OT') ?? getValue(r, 'orden') ?? '—';
+    const tipo    = getValue(r, 'Tipo mtto') ?? getValue(r, 'TipoMtto') ?? '—';
+    const estatus = getValue(r, 'Estatus') ?? 'Pendiente';
+    const costo   = formatCosto(getValue(r, 'Costo'));
+    const taller  = getValue(r, 'Taller') ?? '—';
+
+    const cls = clasificarServicio(r);
+    let badge = 'bg-red-100 text-red-700';
+    if (cls.ejecutado)     badge = 'bg-green-100 text-green-700';
+    else if (cls.tolerancia) badge = 'bg-amber-100 text-amber-700';
+
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-gray-50 border-b';
+    tr.innerHTML = `
+      <td class="p-3">${fecha}</td>
+      <td class="p-3">${ot}</td>
+      <td class="p-3">${tipo}</td>
+      <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-medium ${badge}">${estatus}</span></td>
+      <td class="p-3 text-right font-medium">${costo}</td>
+      <td class="p-3">${taller}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('historialTitulo').textContent = `${matches.length} registro(s) para "${codigo}"`;
 }
