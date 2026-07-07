@@ -251,8 +251,8 @@
           <h3 class="font-semibold text-lg text-gray-800">Cierre Mensual</h3>
           <span id="historicoBadge" class="hidden text-xs font-semibold px-3 py-1 rounded-full" style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
           <div class="ml-auto flex items-center gap-2">
-            <button onclick="abrirModalCierreMes()"
-                    class="flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors btn-primary">
+            <button id="btnCerrarMes" onclick="abrirModalCierreMes()"
+                    class="hidden flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors btn-primary">
               <i class="ti ti-lock-square text-base"></i> Cerrar Mes
             </button>
             <button onclick="exportarExcelConHistorico()"

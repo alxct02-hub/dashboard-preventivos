@@ -213,6 +213,10 @@ function cerrarModalEdicion() {
 }
 
 async function guardarEdicion() {
+  if (!_esAdmin()) {
+    mostrarToast('Solo el administrador puede editar registros.', 'warn');
+    return;
+  }
   if (_idxEdicion === null) return;
 
   const row = APP.allData[_idxEdicion];
@@ -266,13 +270,25 @@ async function buscarHistorial() {
   document.getElementById('historialResultados').classList.remove('hidden');
 
   // Buscar en datos actuales
-  const matches = APP.allData.filter(r => {
+  const equipoMatches = APP.allData.filter(r => {
     const equipo = (getValue(r, 'Economico') ?? getValue(r, 'Equipo') ?? '').toString().toLowerCase();
     return equipo.includes(codigo.toLowerCase());
   });
 
-  if (matches.length === 0) {
+  // Solo mostrar servicios ejecutados (excluir pendientes)
+  const matches = equipoMatches.filter(r => {
+    const estatus = (getValue(r, 'Estatus') ?? '').toString().toLowerCase().trim();
+    return estatus === 'ejecutado';
+  });
+
+  if (equipoMatches.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">No se encontraron registros para "${codigo}"</td></tr>`;
+    return;
+  }
+
+  if (matches.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">No hay servicios ejecutados para "${codigo}"</td></tr>`;
+    document.getElementById('historialTitulo').textContent = `"${codigo}" — sin servicios ejecutados`;
     return;
   }
 
@@ -302,5 +318,5 @@ async function buscarHistorial() {
     tbody.appendChild(tr);
   });
 
-  document.getElementById('historialTitulo').textContent = `${matches.length} registro(s) para "${codigo}"`;
+  document.getElementById('historialTitulo').textContent = `${matches.length} servicio(s) ejecutado(s) para "${codigo}"`;
 }

@@ -102,9 +102,11 @@ window._onAuthChange = function (user) {
     const displayName = Object.keys(ADMIN_USERS).find(u => ADMIN_USERS[u] === user.email) ?? user.email;
     if (emailSpan) emailSpan.textContent = displayName;
     importZone?.classList.remove('hidden');
+    document.getElementById('btnCerrarMes')?.classList.remove('hidden');
   } else {
     userInfo?.classList.remove('flex');
     importZone?.classList.add('hidden');
+    document.getElementById('btnCerrarMes')?.classList.add('hidden');
   }
 };
 
@@ -122,5 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('DOMContentLoaded', async () => {
   // Esperar a que Firebase Auth inicialice (sesión anónima o existente)
   if (window._authReady) await window._authReady;
+  // Garantizar sincronización de UI de auth (por si onAuthStateChanged disparó antes que _onAuthChange estuviera listo)
+  window._onAuthChange(window.getFirebaseUser?.() ?? window._fbUser ?? null);
   await CargaDatos();
 });

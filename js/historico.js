@@ -90,6 +90,10 @@ function actualizarPreviewCierre() {
 }
 
 async function confirmarCierreMes() {
+  if (!_esAdmin()) {
+    mostrarToast('Solo el administrador puede cerrar meses.', 'warn');
+    return;
+  }
   const mesKey = document.getElementById('cerrarMesSelect').value;
   if (!mesKey) return;
   const [mes, año] = mesKey.split('/');
