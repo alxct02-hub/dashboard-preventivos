@@ -63,5 +63,8 @@ function sortMesAño(a, b) {
   const [bMes, bAño] = b.split('/');
   const dif = parseInt(aAño || 0) - parseInt(bAño || 0);
   if (dif !== 0) return dif;
-  return MESES_ORDEN.indexOf(aMes) - MESES_ORDEN.indexOf(bMes);
+  // Soporta meses numéricos ("7") y meses con nombre ("Julio")
+  const aIdx = /^\d+$/.test((aMes || '').trim()) ? parseInt(aMes) - 1 : MESES_ORDEN.indexOf(aMes);
+  const bIdx = /^\d+$/.test((bMes || '').trim()) ? parseInt(bMes) - 1 : MESES_ORDEN.indexOf(bMes);
+  return aIdx - bIdx;
 }

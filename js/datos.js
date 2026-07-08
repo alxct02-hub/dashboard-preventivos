@@ -36,7 +36,21 @@ async function procesarArchivoExcel(file) {
 
         APP.allData      = parsed;
         APP.filteredData = [...APP.allData];
-        cargarHistorico(workbook);
+
+        // ─── Leer hoja HISTORICO del mismo workbook (meses cerrados anteriores) ──
+        try {
+          const hojaHist = workbook.SheetNames.find(n => n.trim().toUpperCase() === 'HISTORICO');
+          APP.historico = hojaHist
+            ? XLSX.utils.sheet_to_json(workbook.Sheets[hojaHist], { defval: '' })
+                .map(r => ({
+                  ...r,
+                  // Normalizar: Excel exporta 'Estado' con mayúscula; el resto del código usa 'estado'
+                  estado: (r.estado || r.Estado || '').toString().toLowerCase().trim(),
+                }))
+            : (APP.historico.length ? APP.historico : []);
+        } catch (_) {
+          APP.historico = APP.historico.length ? APP.historico : [];
+        }
 
         _setImportProgress(true, 'Guardando en nube...');
 

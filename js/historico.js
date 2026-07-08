@@ -38,7 +38,8 @@ function abrirModalCierreMes() {
   // (garantiza que el admin siempre pueda cerrar cualquier mes pasado)
   const mesesData      = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))];
   const mesesFirestore = Object.keys(APP.estadosMeses ?? {});
-  const mesesReferencia = _mesesAñoActualYAnterior();
+  // Tomar un ejemplo de clave para detectar el formato (numérico vs texto, año corto vs largo)
+  const mesesReferencia = _mesesAñoActualYAnterior(mesesData[0] ?? mesesFirestore[0] ?? null);
   const disponibles    = [...new Set([...mesesData, ...mesesFirestore, ...mesesReferencia])]
     .filter(m => !histKeys.has(m))
     .sort((a, b) => sortMesAño(b, a)); // más reciente primero
@@ -221,16 +222,30 @@ function _actualizarBadgeHistorico() {
   }
 }
 
-// Genera todos los meses del año actual (hasta el mes en curso) + año anterior completo
-function _mesesAñoActualYAnterior() {
-  const ahora      = new Date();
-  const añoActual  = ahora.getFullYear();
-  const mesActual  = ahora.getMonth(); // 0-based
+// Genera todos los meses del año actual (hasta el mes en curso) + año anterior completo.
+// Detecta automáticamente el formato usado en los datos (p. ej. "7/26" vs "Julio/2026").
+// formatExample: una clave existente como "7/26" o "Julio/2026"; si no hay datos, devuelve [].
+function _mesesAñoActualYAnterior(formatExample) {
+  if (!formatExample) return [];
+
+  const [mesStr, añoStr] = formatExample.split('/');
+  // ¿El mes es numérico? (e.g. "7")
+  const isNumeric  = /^\d+$/.test((mesStr || '').trim());
+  // ¿El año es de 2 dígitos? (e.g. "26")
+  const isShortYr  = añoStr && añoStr.trim().length === 2;
+
+  const ahora     = new Date();
+  const añoActual = ahora.getFullYear();
+  const mesActual = ahora.getMonth(); // 0-based
+
+  const fmtAño = (y) => isShortYr ? String(y).slice(-2) : String(y);
+  const fmtMes = (idx) => isNumeric ? String(idx + 1) : MESES_ORDEN[idx];
+
   const meses = [];
   // Año anterior completo
-  MESES_ORDEN.forEach(m => meses.push(`${m}/${añoActual - 1}`));
+  for (let i = 0; i < 12; i++) meses.push(`${fmtMes(i)}/${fmtAño(añoActual - 1)}`);
   // Año actual hasta el mes en curso (inclusive)
-  MESES_ORDEN.slice(0, mesActual + 1).forEach(m => meses.push(`${m}/${añoActual}`));
+  for (let i = 0; i <= mesActual; i++) meses.push(`${fmtMes(i)}/${fmtAño(añoActual)}`);
   return meses;
 }
 
