@@ -169,7 +169,7 @@
         <i class="ti ti-books mr-1"></i> Catálogo de Información
       </button>
       <button class="tab-btn" data-tab="historial">
-        <i class="ti ti-history mr-1"></i> Historial por Equipo
+        <i class="ti ti-history mr-1"></i> Historial por Unidad
       </button>
     </div>
 
@@ -476,7 +476,7 @@
     <div id="tab-historial" class="tab-panel">
 
       <div class="flex items-center gap-4 mb-4">
-        <h2 class="text-xl font-bold" style="color:var(--navy)">Historial por Equipo</h2>
+        <h2 class="text-xl font-bold" style="color:var(--navy)">Historial por Unidad</h2>
       </div>
 
       <!-- FILTROS -->
@@ -505,7 +505,7 @@
       <!-- RESULTADOS -->
       <div id="historialResultados" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
-          <h3 class="font-semibold text-gray-800" id="historialTitulo">Selecciona un equipo para ver su historial</h3>
+          <h3 class="font-semibold text-gray-800" id="historialTitulo">Historial por Unidad</h3>
           <span id="historialContador" class="hidden text-xs font-semibold px-3 py-1 rounded-full"
                 style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
         </div>
@@ -515,7 +515,6 @@
               <tr>
                 <th class="p-3 text-left text-white font-semibold text-xs uppercase">Fecha</th>
                 <th class="p-3 text-left text-white font-semibold text-xs uppercase">Ubicación</th>
-                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Equipo</th>
                 <th class="p-3 text-left text-white font-semibold text-xs uppercase">Tipo Mtto</th>
                 <th class="p-3 text-left text-white font-semibold text-xs uppercase">Estatus</th>
                 <th class="p-3 text-right text-white font-semibold text-xs uppercase">Costo</th>
@@ -523,7 +522,7 @@
               </tr>
             </thead>
             <tbody id="historialBody" class="divide-y">
-              <tr><td colspan="7" class="p-8 text-center text-gray-400">Ingresa un código de equipo para buscar</td></tr>
+              <tr><td colspan="6" class="p-8 text-center text-gray-400">Los servicios ejecutados aparecerán agrupados por unidad</td></tr>
             </tbody>
           </table>
         </div>

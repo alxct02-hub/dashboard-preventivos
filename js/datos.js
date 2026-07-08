@@ -372,6 +372,10 @@ function filtrarHistorial() {
   const mes       = document.getElementById('histFiltroMes')?.value || '';
 
   _historialFiltrado = APP.allData.filter(r => {
+    // Solo servicios EJECUTADOS
+    const estatus = (getValue(r, 'Estatus') ?? '').toString().toLowerCase().trim();
+    if (estatus !== 'ejecutado') return false;
+
     if (ubicacion && getValue(r, 'Ubicación') !== ubicacion) return false;
     if (equipo) {
       const cod = (getValue(r, 'Economico') || getValue(r, 'Equipo') || '').toString().toLowerCase();
@@ -381,10 +385,10 @@ function filtrarHistorial() {
     return true;
   });
 
-  renderHistorialTabla();
+  renderHistorialAgrupado();
 }
 
-function renderHistorialTabla() {
+function renderHistorialAgrupado() {
   const tbody = document.getElementById('historialBody');
   const titulo = document.getElementById('historialTitulo');
   const badge  = document.getElementById('historialContador');
@@ -392,43 +396,62 @@ function renderHistorialTabla() {
   if (!tbody) return;
 
   if (_historialFiltrado.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-400">No hay registros que coincidan con los filtros</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-400">No hay servicios ejecutados que coincidan con los filtros</td></tr>';
     if (titulo) titulo.textContent = 'Sin resultados';
     if (badge) badge.classList.add('hidden');
     return;
   }
 
-  if (titulo) titulo.textContent = 'Resultados de búsqueda';
+  // Agrupar por equipo/unidad
+  const grupos = {};
+  _historialFiltrado.forEach(r => {
+    const equipo = (getValue(r, 'Economico') || getValue(r, 'Equipo') || '—').toString().trim();
+    if (!grupos[equipo]) grupos[equipo] = [];
+    grupos[equipo].push(r);
+  });
+
+  const equipos = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
+
+  if (titulo) titulo.textContent = 'Historial por Unidad';
   if (badge) {
-    badge.textContent = `${_historialFiltrado.length} registro(s)`;
+    const totalServicios = _historialFiltrado.length;
+    badge.textContent = `${equipos.length} unidad(es), ${totalServicios} servicio(s)`;
     badge.classList.remove('hidden');
   }
 
   tbody.innerHTML = '';
-  _historialFiltrado.forEach(r => {
-    const fecha    = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
-    const ubic     = getValue(r, 'Ubicación') || '—';
-    const equipo   = getValue(r, 'Economico') || getValue(r, 'Equipo') || '—';
-    const tipo     = getValue(r, 'Tipo mtto') || '—';
-    const estatus  = getValue(r, 'Estatus') || 'Pendiente';
-    const costo    = formatCosto(getValue(r, 'Costo'));
-    const taller   = getValue(r, 'Taller') || '—';
 
-    const cls = clasificarServicio(r);
-    let badgeCls = 'bg-red-100 text-red-700';
-    if (cls.ejecutado)     badgeCls = 'bg-green-100 text-green-700';
-    else if (cls.tolerancia) badgeCls = 'bg-amber-100 text-amber-700';
+  equipos.forEach(equipo => {
+    const rows = grupos[equipo];
 
-    const tr = document.createElement('tr');
-    tr.className = 'hover:bg-gray-50 border-b';
-    tr.innerHTML = `
-      <td class="p-3">${fecha}</td>
-      <td class="p-3">${ubic}</td>
-      <td class="p-3 font-medium">${equipo}</td>
-      <td class="p-3">${tipo}</td>
-      <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-medium ${badgeCls}">${estatus}</span></td>
-      <td class="p-3 text-right font-medium">${costo}</td>
-      <td class="p-3">${taller}</td>`;
-    tbody.appendChild(tr);
+    // Fila de encabezado de unidad
+    const trHeader = document.createElement('tr');
+    trHeader.className = 'bg-slate-100';
+    trHeader.innerHTML = `
+      <td colspan="6" class="p-3">
+        <span class="font-bold px-3 py-1 rounded-lg" style="background:var(--navy);color:white">${equipo}</span>
+        <span class="text-xs text-gray-500 ml-2">${rows.length} servicio(s) ejecutado(s)</span>
+      </td>`;
+    tbody.appendChild(trHeader);
+
+    // Servicios de esta unidad
+    rows.forEach(r => {
+      const fecha   = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
+      const ubic    = getValue(r, 'Ubicación') || '—';
+      const tipo    = getValue(r, 'Tipo mtto') || '—';
+      const costo   = formatCosto(getValue(r, 'Costo'));
+      const taller  = getValue(r, 'Taller') || '—';
+
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 border-b';
+      tr.innerHTML = `
+        <td class="p-3 pl-6">${fecha}</td>
+        <td class="p-3">${ubic}</td>
+        <td class="p-3">${tipo}</td>
+        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Ejecutado</span></td>
+        <td class="p-3 text-right font-medium">${costo}</td>
+        <td class="p-3">${taller}</td>`;
+      tbody.appendChild(tr);
+    });
   });
 }
