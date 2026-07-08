@@ -28,9 +28,18 @@ function abrirModalCierreMes() {
     return;
   }
 
-  const histKeys   = new Set(APP.historico.filter(r => r.estado === 'cerrado').map(r => `${r.Mes}/${r.Año}`));
-  const dataMeses  = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))].sort(sortMesAño);
-  const disponibles = dataMeses.filter(m => !histKeys.has(m));
+  // Meses ya cerrados: unir historico local + estados de Firestore
+  const histKeys = new Set([
+    ...APP.historico.filter(r => r.estado === 'cerrado').map(r => `${r.Mes}/${r.Año}`),
+    ...Object.entries(APP.estadosMeses ?? {}).filter(([, v]) => v.estado === 'cerrado').map(([k]) => k),
+  ]);
+
+  // Meses disponibles: datos actuales + meses conocidos en Firestore (para cerrar meses anteriores)
+  const mesesData      = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))];
+  const mesesFirestore = Object.keys(APP.estadosMeses ?? {});
+  const disponibles    = [...new Set([...mesesData, ...mesesFirestore])]
+    .filter(m => !histKeys.has(m))
+    .sort((a, b) => sortMesAño(b, a)); // más reciente primero
 
   if (disponibles.length === 0) {
     mostrarToast('Todos los meses ya tienen cierre.', 'info');

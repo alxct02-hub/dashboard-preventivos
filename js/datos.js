@@ -256,67 +256,93 @@ function _persistirCambiosLocales() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// FASE 9: HISTORIAL POR EQUIPO
+// FASE 9: HISTORIAL POR EQUIPO — lista agrupada por equipo, solo ejecutados
 // ════════════════════════════════════════════════════════════════════════════
-async function buscarHistorial() {
-  const codigo = document.getElementById('historialEquipoInput').value.trim();
-  if (!codigo) {
-    mostrarToast('Ingresa un código de equipo.', 'warn');
+function renderHistorialCompleto() {
+  const container = document.getElementById('historialGrupos');
+  if (!container) return;
+
+  if (APP.allData.length === 0) {
+    container.innerHTML = `
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
+        <i class="ti ti-history text-3xl mb-2 block"></i>
+        No hay datos cargados.
+      </div>`;
+    const badge = document.getElementById('historialContador');
+    if (badge) badge.classList.add('hidden');
     return;
   }
 
-  const tbody = document.getElementById('historialBody');
-  tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400">Buscando...</td></tr>';
-  document.getElementById('historialResultados').classList.remove('hidden');
-
-  // Buscar en datos actuales
-  const equipoMatches = APP.allData.filter(r => {
-    const equipo = (getValue(r, 'Economico') ?? getValue(r, 'Equipo') ?? '').toString().toLowerCase();
-    return equipo.includes(codigo.toLowerCase());
-  });
-
-  // Solo mostrar servicios ejecutados (excluir pendientes)
-  const matches = equipoMatches.filter(r => {
+  // Agrupar por equipo, solo servicios ejecutados
+  const grupos = {};
+  APP.allData.forEach(r => {
     const estatus = (getValue(r, 'Estatus') ?? '').toString().toLowerCase().trim();
-    return estatus === 'ejecutado';
+    if (estatus !== 'ejecutado') return;
+    const equipo = (getValue(r, 'Economico') || getValue(r, 'Equipo') || '—').toString().trim();
+    if (!grupos[equipo]) grupos[equipo] = [];
+    grupos[equipo].push(r);
   });
 
-  if (equipoMatches.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">No se encontraron registros para "${codigo}"</td></tr>`;
+  const equipos = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
+
+  const badge = document.getElementById('historialContador');
+  if (equipos.length === 0) {
+    container.innerHTML = `
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
+        <i class="ti ti-history text-3xl mb-2 block"></i>
+        No hay servicios ejecutados en los datos actuales.
+      </div>`;
+    if (badge) badge.classList.add('hidden');
     return;
   }
 
-  if (matches.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">No hay servicios ejecutados para "${codigo}"</td></tr>`;
-    document.getElementById('historialTitulo').textContent = `"${codigo}" — sin servicios ejecutados`;
-    return;
+  if (badge) {
+    badge.textContent = `${equipos.length} equipo(s)`;
+    badge.classList.remove('hidden');
   }
 
-  tbody.innerHTML = '';
-  matches.forEach(r => {
-    const fecha   = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
-    const ot      = getValue(r, 'OT') ?? getValue(r, 'orden') ?? '—';
-    const tipo    = getValue(r, 'Tipo mtto') ?? getValue(r, 'TipoMtto') ?? '—';
-    const estatus = getValue(r, 'Estatus') ?? 'Pendiente';
-    const costo   = formatCosto(getValue(r, 'Costo'));
-    const taller  = getValue(r, 'Taller') ?? '—';
+  container.innerHTML = '';
+  equipos.forEach(equipo => {
+    const rows = grupos[equipo];
 
-    const cls = clasificarServicio(r);
-    let badge = 'bg-red-100 text-red-700';
-    if (cls.ejecutado)     badge = 'bg-green-100 text-green-700';
-    else if (cls.tolerancia) badge = 'bg-amber-100 text-amber-700';
+    const filas = rows.map(r => {
+      const fecha  = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
+      const ot     = getValue(r, 'OT') || getValue(r, 'orden') || '—';
+      const tipo   = getValue(r, 'Tipo mtto') || getValue(r, 'TipoMtto') || '—';
+      const costo  = formatCosto(getValue(r, 'Costo'));
+      const taller = getValue(r, 'Taller') || '—';
+      return `
+        <tr class="hover:bg-gray-50 border-b">
+          <td class="p-3 text-gray-600">${fecha}</td>
+          <td class="p-3 text-gray-700">${ot}</td>
+          <td class="p-3 text-gray-600">${tipo}</td>
+          <td class="p-3 text-right font-medium text-gray-800">${costo}</td>
+          <td class="p-3 text-gray-600">${taller}</td>
+        </tr>`;
+    }).join('');
 
-    const tr = document.createElement('tr');
-    tr.className = 'hover:bg-gray-50 border-b';
-    tr.innerHTML = `
-      <td class="p-3">${fecha}</td>
-      <td class="p-3">${ot}</td>
-      <td class="p-3">${tipo}</td>
-      <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-medium ${badge}">${estatus}</span></td>
-      <td class="p-3 text-right font-medium">${costo}</td>
-      <td class="p-3">${taller}</td>`;
-    tbody.appendChild(tr);
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4';
+    card.innerHTML = `
+      <div class="px-5 py-4 border-b flex items-center gap-3" style="background:#f8fafc">
+        <span class="font-bold text-sm px-3 py-1 rounded-lg"
+              style="background:rgba(30,58,95,0.12);color:var(--navy)">${equipo}</span>
+        <span class="text-xs text-gray-500">${rows.length} servicio(s) ejecutado(s)</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr style="background:var(--navy)">
+              <th class="p-3 text-left text-white font-semibold text-xs uppercase">Fecha</th>
+              <th class="p-3 text-left text-white font-semibold text-xs uppercase">OT</th>
+              <th class="p-3 text-left text-white font-semibold text-xs uppercase">Tipo Mtto</th>
+              <th class="p-3 text-right text-white font-semibold text-xs uppercase">Costo</th>
+              <th class="p-3 text-left text-white font-semibold text-xs uppercase">Taller</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">${filas}</tbody>
+        </table>
+      </div>`;
+    container.appendChild(card);
   });
-
-  document.getElementById('historialTitulo').textContent = `${matches.length} servicio(s) ejecutado(s) para "${codigo}"`;
 }

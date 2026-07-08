@@ -477,37 +477,14 @@
 
       <div class="flex items-center gap-4 mb-6">
         <h2 class="text-xl font-bold" style="color:var(--navy)">Historial por Equipo</h2>
+        <span id="historialContador" class="hidden text-xs font-semibold px-3 py-1 rounded-full"
+              style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-        <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Buscar por código de equipo</label>
-        <div class="flex gap-3">
-          <input type="text" id="historialEquipoInput" placeholder="Ej: EX-07"
-                 class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-400">
-          <button onclick="buscarHistorial()" class="px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-colors" style="background:var(--navy)">
-            <i class="ti ti-search mr-1"></i> Buscar
-          </button>
-        </div>
-      </div>
-
-      <div id="historialResultados" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hidden">
-        <div class="p-5 border-b bg-gray-50">
-          <h3 class="font-semibold text-gray-800" id="historialTitulo">Resultados</h3>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead style="background:var(--navy)">
-              <tr>
-                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Fecha</th>
-                <th class="p-3 text-left text-white font-semibold text-xs uppercase">OT</th>
-                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Tipo Mtto</th>
-                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Estatus</th>
-                <th class="p-3 text-right text-white font-semibold text-xs uppercase">Costo</th>
-                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Taller</th>
-              </tr>
-            </thead>
-            <tbody id="historialBody" class="divide-y"></tbody>
-          </table>
+      <div id="historialGrupos">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
+          <i class="ti ti-history text-3xl mb-2 block"></i>
+          Selecciona la pestaña para cargar el historial.
         </div>
       </div>
 
