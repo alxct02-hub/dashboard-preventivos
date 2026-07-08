@@ -1,5 +1,24 @@
 // js/datos.js — Carga de datos: Firestore (primario) + localStorage (caché) + Excel (admin)
 
+// ─── Compatibilidad: esta función puede ser llamada desde versiones anteriores del código ──
+// Se define globalmente para que nunca lance ReferenceError independientemente del caché del CDN.
+function cargarHistorico(workbook) {
+  try {
+    const hojaHist = workbook && workbook.SheetNames
+      ? workbook.SheetNames.find(n => n.trim().toUpperCase() === 'HISTORICO')
+      : null;
+    APP.historico = hojaHist
+      ? XLSX.utils.sheet_to_json(workbook.Sheets[hojaHist], { defval: '' })
+          .map(r => ({
+            ...r,
+            estado: (r.estado || r.Estado || '').toString().toLowerCase().trim(),
+          }))
+      : (APP.historico && APP.historico.length ? APP.historico : []);
+  } catch (_) {
+    APP.historico = (APP.historico && APP.historico.length) ? APP.historico : [];
+  }
+}
+
 // ─── Procesamiento central de archivo Excel ───────────────────────────────────
 async function procesarArchivoExcel(file) {
   if (!file) return;
