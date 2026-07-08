@@ -343,93 +343,92 @@ function _persistirCambiosLocales() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// FASE 9: HISTORIAL POR EQUIPO — lista agrupada por equipo, solo ejecutados
+// FASE 9: HISTORIAL POR EQUIPO — con filtros
 // ════════════════════════════════════════════════════════════════════════════
-function renderHistorialCompleto() {
-  const container = document.getElementById('historialGrupos');
-  if (!container) return;
+let _historialFiltrado = [];
 
-  if (APP.allData.length === 0) {
-    container.innerHTML = `
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
-        <i class="ti ti-history text-3xl mb-2 block"></i>
-        No hay datos cargados.
-      </div>`;
-    const badge = document.getElementById('historialContador');
-    if (badge) badge.classList.add('hidden');
-    return;
-  }
+function inicializarFiltrosHistorial() {
+  const selUbicacion = document.getElementById('histFiltroUbicacion');
+  const selMes       = document.getElementById('histFiltroMes');
 
-  // Agrupar por equipo, solo servicios ejecutados
-  const grupos = {};
-  APP.allData.forEach(r => {
-    const estatus = (getValue(r, 'Estatus') ?? '').toString().toLowerCase().trim();
-    if (estatus !== 'ejecutado') return;
-    const equipo = (getValue(r, 'Economico') || getValue(r, 'Equipo') || '—').toString().trim();
-    if (!grupos[equipo]) grupos[equipo] = [];
-    grupos[equipo].push(r);
+  if (!selUbicacion || !selMes) return;
+
+  // Ubicaciones únicas
+  const ubicaciones = [...new Set(APP.allData.map(r => getValue(r, 'Ubicación')).filter(Boolean))].sort();
+  selUbicacion.innerHTML = '<option value="">Todas las plantas</option>' +
+    ubicaciones.map(u => `<option value="${u}">${u}</option>`).join('');
+
+  // Meses únicos (solo 2026)
+  const meses = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))]
+    .filter(m => { const a = m.split('/')[1]; return a === '26' || a === '2026'; })
+    .sort((a, b) => sortMesAño(b, a));
+  selMes.innerHTML = '<option value="">Todos los meses</option>' +
+    meses.map(m => `<option value="${m}">${m}</option>`).join('');
+}
+
+function filtrarHistorial() {
+  const ubicacion = document.getElementById('histFiltroUbicacion')?.value || '';
+  const equipo    = document.getElementById('histFiltroEquipo')?.value.trim().toLowerCase() || '';
+  const mes       = document.getElementById('histFiltroMes')?.value || '';
+
+  _historialFiltrado = APP.allData.filter(r => {
+    if (ubicacion && getValue(r, 'Ubicación') !== ubicacion) return false;
+    if (equipo) {
+      const cod = (getValue(r, 'Economico') || getValue(r, 'Equipo') || '').toString().toLowerCase();
+      if (!cod.includes(equipo)) return false;
+    }
+    if (mes && mesAñoKey(r) !== mes) return false;
+    return true;
   });
 
-  const equipos = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
+  renderHistorialTabla();
+}
 
-  const badge = document.getElementById('historialContador');
-  if (equipos.length === 0) {
-    container.innerHTML = `
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
-        <i class="ti ti-history text-3xl mb-2 block"></i>
-        No hay servicios ejecutados en los datos actuales.
-      </div>`;
+function renderHistorialTabla() {
+  const tbody = document.getElementById('historialBody');
+  const titulo = document.getElementById('historialTitulo');
+  const badge  = document.getElementById('historialContador');
+
+  if (!tbody) return;
+
+  if (_historialFiltrado.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-400">No hay registros que coincidan con los filtros</td></tr>';
+    if (titulo) titulo.textContent = 'Sin resultados';
     if (badge) badge.classList.add('hidden');
     return;
   }
 
+  if (titulo) titulo.textContent = 'Resultados de búsqueda';
   if (badge) {
-    badge.textContent = `${equipos.length} equipo(s)`;
+    badge.textContent = `${_historialFiltrado.length} registro(s)`;
     badge.classList.remove('hidden');
   }
 
-  container.innerHTML = '';
-  equipos.forEach(equipo => {
-    const rows = grupos[equipo];
+  tbody.innerHTML = '';
+  _historialFiltrado.forEach(r => {
+    const fecha    = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
+    const ubic     = getValue(r, 'Ubicación') || '—';
+    const equipo   = getValue(r, 'Economico') || getValue(r, 'Equipo') || '—';
+    const tipo     = getValue(r, 'Tipo mtto') || '—';
+    const estatus  = getValue(r, 'Estatus') || 'Pendiente';
+    const costo    = formatCosto(getValue(r, 'Costo'));
+    const taller   = getValue(r, 'Taller') || '—';
 
-    const filas = rows.map(r => {
-      const fecha  = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
-      const ot     = getValue(r, 'OT') || getValue(r, 'orden') || '—';
-      const tipo   = getValue(r, 'Tipo mtto') || getValue(r, 'TipoMtto') || '—';
-      const costo  = formatCosto(getValue(r, 'Costo'));
-      const taller = getValue(r, 'Taller') || '—';
-      return `
-        <tr class="hover:bg-gray-50 border-b">
-          <td class="p-3 text-gray-600">${fecha}</td>
-          <td class="p-3 text-gray-700">${ot}</td>
-          <td class="p-3 text-gray-600">${tipo}</td>
-          <td class="p-3 text-right font-medium text-gray-800">${costo}</td>
-          <td class="p-3 text-gray-600">${taller}</td>
-        </tr>`;
-    }).join('');
+    const cls = clasificarServicio(r);
+    let badgeCls = 'bg-red-100 text-red-700';
+    if (cls.ejecutado)     badgeCls = 'bg-green-100 text-green-700';
+    else if (cls.tolerancia) badgeCls = 'bg-amber-100 text-amber-700';
 
-    const card = document.createElement('div');
-    card.className = 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4';
-    card.innerHTML = `
-      <div class="px-5 py-4 border-b flex items-center gap-3" style="background:#f8fafc">
-        <span class="font-bold text-sm px-3 py-1 rounded-lg"
-              style="background:rgba(30,58,95,0.12);color:var(--navy)">${equipo}</span>
-        <span class="text-xs text-gray-500">${rows.length} servicio(s) ejecutado(s)</span>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr style="background:var(--navy)">
-              <th class="p-3 text-left text-white font-semibold text-xs uppercase">Fecha</th>
-              <th class="p-3 text-left text-white font-semibold text-xs uppercase">OT</th>
-              <th class="p-3 text-left text-white font-semibold text-xs uppercase">Tipo Mtto</th>
-              <th class="p-3 text-right text-white font-semibold text-xs uppercase">Costo</th>
-              <th class="p-3 text-left text-white font-semibold text-xs uppercase">Taller</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y">${filas}</tbody>
-        </table>
-      </div>`;
-    container.appendChild(card);
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-gray-50 border-b';
+    tr.innerHTML = `
+      <td class="p-3">${fecha}</td>
+      <td class="p-3">${ubic}</td>
+      <td class="p-3 font-medium">${equipo}</td>
+      <td class="p-3">${tipo}</td>
+      <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-medium ${badgeCls}">${estatus}</span></td>
+      <td class="p-3 text-right font-medium">${costo}</td>
+      <td class="p-3">${taller}</td>`;
+    tbody.appendChild(tr);
   });
 }

@@ -475,16 +475,57 @@
     <!-- ════════════ PESTAÑA: HISTORIAL ══════════════════════════════════════ -->
     <div id="tab-historial" class="tab-panel">
 
-      <div class="flex items-center gap-4 mb-6">
+      <div class="flex items-center gap-4 mb-4">
         <h2 class="text-xl font-bold" style="color:var(--navy)">Historial por Equipo</h2>
-        <span id="historialContador" class="hidden text-xs font-semibold px-3 py-1 rounded-full"
-              style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
       </div>
 
-      <div id="historialGrupos">
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
-          <i class="ti ti-history text-3xl mb-2 block"></i>
-          Selecciona la pestaña para cargar el historial.
+      <!-- FILTROS -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Ubicación</label>
+            <select id="histFiltroUbicacion" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" onchange="filtrarHistorial()">
+              <option value="">Todas las plantas</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Equipo</label>
+            <input type="text" id="histFiltroEquipo" placeholder="Ej: EX-07"
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" onkeyup="filtrarHistorial()">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Mes/Año</label>
+            <select id="histFiltroMes" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" onchange="filtrarHistorial()">
+              <option value="">Todos los meses</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULTADOS -->
+      <div id="historialResultados" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h3 class="font-semibold text-gray-800" id="historialTitulo">Selecciona un equipo para ver su historial</h3>
+          <span id="historialContador" class="hidden text-xs font-semibold px-3 py-1 rounded-full"
+                style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead style="background:var(--navy)">
+              <tr>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Fecha</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Ubicación</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Equipo</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Tipo Mtto</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Estatus</th>
+                <th class="p-3 text-right text-white font-semibold text-xs uppercase">Costo</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Taller</th>
+              </tr>
+            </thead>
+            <tbody id="historialBody" class="divide-y">
+              <tr><td colspan="7" class="p-8 text-center text-gray-400">Ingresa un código de equipo para buscar</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

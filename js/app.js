@@ -10,7 +10,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
     if (btn.dataset.tab === 'indicador') renderIndicador();
     if (btn.dataset.tab === 'catalogo')  inicializarCatalogo();
-    if (btn.dataset.tab === 'historial') renderHistorialCompleto();
+    if (btn.dataset.tab === 'historial') {
+      inicializarFiltrosHistorial();
+      filtrarHistorial();
+    }
   });
 });
 

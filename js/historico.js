@@ -34,15 +34,19 @@ function abrirModalCierreMes() {
     ...Object.entries(APP.estadosMeses ?? {}).filter(([, v]) => v.estado === 'cerrado').map(([k]) => k),
   ]);
 
-  // Meses disponibles: datos actuales + Firestore + año actual completo + año anterior
-  // (garantiza que el admin siempre pueda cerrar cualquier mes pasado)
+  // Meses disponibles: datos actuales + meses del año 2026
   const mesesData      = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))];
-  const mesesFirestore = Object.keys(APP.estadosMeses ?? {});
   // Tomar un ejemplo de clave para detectar el formato (numérico vs texto, año corto vs largo)
-  const mesesReferencia = _mesesAñoActualYAnterior(mesesData[0] ?? mesesFirestore[0] ?? null);
-  const disponibles    = [...new Set([...mesesData, ...mesesFirestore, ...mesesReferencia])]
-    .filter(m => !histKeys.has(m))
-    .sort((a, b) => sortMesAño(b, a)); // más reciente primero
+  const formatExample = mesesData[0] ?? '7/26';
+  const mesesReferencia = _mesesAñoActual(formatExample);
+
+  // Solo incluir meses del año 2026 (formato 26 o 2026)
+  const disponibles = [...new Set([...mesesData, ...mesesReferencia])]
+    .filter(m => {
+      const año = (m.split('/')[1] || '');
+      return (año === '26' || año === '2026') && !histKeys.has(m);
+    })
+    .sort((a, b) => sortMesAño(b, a));
 
   if (disponibles.length === 0) {
     mostrarToast('Todos los meses ya tienen cierre.', 'info');
@@ -231,30 +235,28 @@ function _actualizarBadgeHistorico() {
   }
 }
 
-// Genera todos los meses del año actual (hasta el mes en curso) + año anterior completo.
+// Genera todos los meses del año 2026 hasta el mes actual.
 // Detecta automáticamente el formato usado en los datos (p. ej. "7/26" vs "Julio/2026").
-// formatExample: una clave existente como "7/26" o "Julio/2026"; si no hay datos, devuelve [].
-function _mesesAñoActualYAnterior(formatExample) {
-  if (!formatExample) return [];
+function _mesesAñoActual(formatExample) {
+  if (!formatExample) {
+    // Si no hay datos, usar formato numérico con año corto (estándar del sistema)
+    const ahora = new Date();
+    const mesActual = ahora.getMonth();
+    const meses = [];
+    for (let i = 0; i <= mesActual; i++) meses.push(`${i + 1}/26`);
+    return meses;
+  }
 
   const [mesStr, añoStr] = formatExample.split('/');
-  // ¿El mes es numérico? (e.g. "7")
   const isNumeric  = /^\d+$/.test((mesStr || '').trim());
-  // ¿El año es de 2 dígitos? (e.g. "26")
   const isShortYr  = añoStr && añoStr.trim().length === 2;
 
-  const ahora     = new Date();
-  const añoActual = ahora.getFullYear();
-  const mesActual = ahora.getMonth(); // 0-based
-
-  const fmtAño = (y) => isShortYr ? String(y).slice(-2) : String(y);
+  const fmtAño = () => isShortYr ? '26' : '2026';
   const fmtMes = (idx) => isNumeric ? String(idx + 1) : MESES_ORDEN[idx];
 
   const meses = [];
-  // Año anterior completo
-  for (let i = 0; i < 12; i++) meses.push(`${fmtMes(i)}/${fmtAño(añoActual - 1)}`);
-  // Año actual hasta el mes en curso (inclusive)
-  for (let i = 0; i <= mesActual; i++) meses.push(`${fmtMes(i)}/${fmtAño(añoActual)}`);
+  // Solo año 2026, hasta Julio (mes 6, índice 0-6 = Enero-Julio)
+  for (let i = 0; i < 7; i++) meses.push(`${fmtMes(i)}/${fmtAño()}`);
   return meses;
 }
 
