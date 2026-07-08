@@ -205,8 +205,9 @@ function _saveToStorage(data, filename) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       data, filename,
-      savedAt:   new Date().toLocaleString('es-MX'),
-      historico: APP.historico,
+      savedAt:      new Date().toLocaleString('es-MX'),
+      historico:    APP.historico,
+      estadosMeses: APP.estadosMeses ?? {},  // persistir estados cerrado/abierto localmente
     }));
   } catch { /* dataset demasiado grande para localStorage */ }
 }
@@ -220,6 +221,10 @@ function _loadFromStorage() {
     APP.allData      = payload.data;
     APP.filteredData = [...APP.allData];
     APP.historico    = payload.historico || [];
+    // Restaurar estados de meses guardados localmente (cerrado/abierto)
+    if (payload.estadosMeses) {
+      APP.estadosMeses = { ...payload.estadosMeses, ...(APP.estadosMeses ?? {}) };
+    }
     _actualizarBadgeHistorico();
     _showDataStatus(payload.filename, payload.savedAt);
     Configuracion();

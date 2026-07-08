@@ -128,21 +128,24 @@ async function confirmarCierreMes() {
   });
   APP.historico.sort((a, b) => sortMesAño(`${a.Mes}/${a.Año}`, `${b.Mes}/${b.Año}`));
 
+  // Actualizar estado local SIEMPRE, independientemente de si Firestore tiene éxito
+  APP.estadosMeses[mesKey] = { estado: 'cerrado' };
+
+  // Intentar persistir en Firestore (no bloquea si falla)
   try {
     if (typeof cerrarMesFirestore === 'function') {
       await cerrarMesFirestore(mesKey, {
         Programados: prog, Ejecutados: ejec, Tolerancia: tol, Pendientes: pend, Cumplimiento: cumpl,
       });
-      APP.estadosMeses[mesKey] = { estado: 'cerrado' };
     }
   } catch (e) {
-    console.warn('Error guardando cierre en Firestore:', e.message);
+    console.warn('Error guardando cierre en Firestore (estado guardado localmente):', e.message);
   }
 
   _persistirHistoricoEnStorage();
   cerrarModal();
   _actualizarBadgeHistorico();
-  renderDashboard();
+  KPIsHistoricos();   // refrescar tabla con el nuevo badge "cerrado"
   mostrarToast(`Mes ${mesKey} cerrado correctamente.`, 'ok');
 }
 
@@ -157,21 +160,26 @@ async function reabrirMes(mesKey) {
 
   if (!confirm(`¿Reabrir el mes ${mesKey}? Se permitirá editar nuevamente.`)) return;
 
+  // Actualizar estado local SIEMPRE, independientemente de si Firestore tiene éxito
+  APP.estadosMeses[mesKey] = { estado: 'abierto' };
+
+  const [mes, año] = mesKey.split('/');
+  const histIdx = APP.historico.findIndex(r => r.Mes === mes && r.Año === año);
+  if (histIdx >= 0) APP.historico[histIdx].estado = 'abierto';
+
+  // Intentar persistir en Firestore (no bloquea si falla)
   try {
     if (typeof reabrirMesFirestore === 'function') {
       await reabrirMesFirestore(mesKey);
     }
-    APP.estadosMeses[mesKey] = { estado: 'abierto' };
-
-    const [mes, año] = mesKey.split('/');
-    const histIdx = APP.historico.findIndex(r => r.Mes === mes && r.Año === año);
-    if (histIdx >= 0) APP.historico[histIdx].estado = 'abierto';
-
-    renderDashboard();
-    mostrarToast(`Mes ${mesKey} reabierto.`, 'ok');
   } catch (e) {
-    mostrarToast('Error al reabrir: ' + e.message, 'error');
+    console.warn('Error reabriendo mes en Firestore (estado actualizado localmente):', e.message);
   }
+
+  _persistirHistoricoEnStorage();
+  _actualizarBadgeHistorico();
+  KPIsHistoricos();   // refrescar tabla con el badge "abierto" y sin botón Reabrir
+  mostrarToast(`Mes ${mesKey} reabierto.`, 'ok');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -205,7 +213,8 @@ function _persistirHistoricoEnStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const payload = JSON.parse(raw);
-    payload.historico = APP.historico;
+    payload.historico    = APP.historico;
+    payload.estadosMeses = APP.estadosMeses ?? {};   // persistir cierres/aperturas localmente
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch { /* ignore */ }
 }

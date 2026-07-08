@@ -1,0 +1,56 @@
+rules_version = '2';
+// ─── Firestore Security Rules — ConcrePlus Dashboard ──────────────────────────
+//
+// Modelo de acceso:
+//   • Usuarios anónimos (visitantes): solo LECTURA de snapshots y meses
+//   • Usuarios con email/password (admin): lectura Y escritura total
+//
+// Para aplicar estas reglas ve a:
+//   Firebase Console → Firestore Database → Reglas
+// Pega el contenido de este archivo y haz clic en "Publicar".
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper: usuario autenticado con email/contraseña (admin) ──────────────
+    function esAdmin() {
+      return request.auth != null
+          && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    // ── Helper: cualquier usuario autenticado (anónimo o admin) ──────────────
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    // ── Snapshots de datos (Excel importado) ──────────────────────────────────
+    // Lectura: cualquier sesión autenticada (anónima o admin)
+    // Escritura: solo admin
+    match /mant_snapshots/{snapId} {
+      allow read:  if estaAutenticado();
+      allow write: if esAdmin();
+
+      match /chunks/{chunkId} {
+        allow read:  if estaAutenticado();
+        allow write: if esAdmin();
+      }
+    }
+
+    // ── Estados de meses (cerrado/abierto) ────────────────────────────────────
+    // Lectura: cualquier sesión autenticada
+    // Escritura: solo admin
+    match /meses/{mesId} {
+      allow read:  if estaAutenticado();
+      allow write: if esAdmin();
+    }
+
+    // ── Bitácora de acciones ──────────────────────────────────────────────────
+    // Lectura: solo admin
+    // Escritura: solo admin
+    match /bitacora/{logId} {
+      allow read:  if esAdmin();
+      allow write: if esAdmin();
+    }
+  }
+}
