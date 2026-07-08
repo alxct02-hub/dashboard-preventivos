@@ -34,10 +34,12 @@ function abrirModalCierreMes() {
     ...Object.entries(APP.estadosMeses ?? {}).filter(([, v]) => v.estado === 'cerrado').map(([k]) => k),
   ]);
 
-  // Meses disponibles: datos actuales + meses conocidos en Firestore (para cerrar meses anteriores)
+  // Meses disponibles: datos actuales + Firestore + año actual completo + año anterior
+  // (garantiza que el admin siempre pueda cerrar cualquier mes pasado)
   const mesesData      = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))];
   const mesesFirestore = Object.keys(APP.estadosMeses ?? {});
-  const disponibles    = [...new Set([...mesesData, ...mesesFirestore])]
+  const mesesReferencia = _mesesAñoActualYAnterior();
+  const disponibles    = [...new Set([...mesesData, ...mesesFirestore, ...mesesReferencia])]
     .filter(m => !histKeys.has(m))
     .sort((a, b) => sortMesAño(b, a)); // más reciente primero
 
@@ -217,6 +219,19 @@ function _actualizarBadgeHistorico() {
   } else {
     badge.classList.add('hidden');
   }
+}
+
+// Genera todos los meses del año actual (hasta el mes en curso) + año anterior completo
+function _mesesAñoActualYAnterior() {
+  const ahora      = new Date();
+  const añoActual  = ahora.getFullYear();
+  const mesActual  = ahora.getMonth(); // 0-based
+  const meses = [];
+  // Año anterior completo
+  MESES_ORDEN.forEach(m => meses.push(`${m}/${añoActual - 1}`));
+  // Año actual hasta el mes en curso (inclusive)
+  MESES_ORDEN.slice(0, mesActual + 1).forEach(m => meses.push(`${m}/${añoActual}`));
+  return meses;
 }
 
 function _esAdmin() {

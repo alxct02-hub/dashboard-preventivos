@@ -1,60 +1,109 @@
 // js/datos.js — Carga de datos: Firestore (primario) + localStorage (caché) + Excel (admin)
 
-// ─── Listener de importación Excel (solo visible para admin) ──────────────────
-document.getElementById('fileInput').addEventListener('change', async function (e) {
-  const file = e.target.files[0];
+// ─── Procesamiento central de archivo Excel ───────────────────────────────────
+async function procesarArchivoExcel(file) {
   if (!file) return;
+  if (!file.name.match(/\.xlsx?$/i)) {
+    mostrarToast('Solo se aceptan archivos .xlsx', 'warn');
+    return;
+  }
 
   _setImportProgress(true, 'Leyendo archivo...');
 
-  const reader = new FileReader();
-  reader.onload = async function (ev) {
-    try {
-      const data     = new Uint8Array(ev.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-
-      const dataSheet = workbook.SheetNames.find(n => n.trim().toUpperCase() === 'DATA')
-                        ?? workbook.SheetNames[0];
-      const parsed    = XLSX.utils.sheet_to_json(workbook.Sheets[dataSheet], { defval: '' });
-
-      if (parsed.length === 0) {
-        _setImportProgress(false);
-        alert('El archivo no contiene datos en la hoja DATA.');
-        return;
-      }
-
-      APP.allData      = parsed;
-      APP.filteredData = [...APP.allData];
-      cargarHistorico(workbook);
-
-      _setImportProgress(true, 'Guardando en Firestore...');
-
-      // — Guardar en Firestore (fuente de verdad)
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = async function (ev) {
       try {
-        if (typeof guardarSnapshot === 'function') {
-          const snapshotId = await guardarSnapshot(APP.allData, APP.historico, file.name);
-          console.info('Snapshot guardado en Firestore:', snapshotId);
+        const data     = new Uint8Array(ev.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const dataSheet = workbook.SheetNames.find(n => n.trim().toUpperCase() === 'DATA')
+                          ?? workbook.SheetNames[0];
+
+        if (!dataSheet) {
+          _setImportProgress(false);
+          mostrarToast('El archivo no contiene hojas válidas.', 'error');
+          resolve(); return;
         }
-      } catch (fbErr) {
-        console.warn('No se pudo guardar en Firestore, usando sólo localStorage:', fbErr.message);
+
+        const parsed = XLSX.utils.sheet_to_json(workbook.Sheets[dataSheet], { defval: '' });
+
+        if (parsed.length === 0) {
+          _setImportProgress(false);
+          mostrarToast('El archivo no contiene datos en la hoja DATA.', 'warn');
+          resolve(); return;
+        }
+
+        APP.allData      = parsed;
+        APP.filteredData = [...APP.allData];
+        cargarHistorico(workbook);
+
+        _setImportProgress(true, 'Guardando en nube...');
+
+        // — Guardar en Firestore (fuente de verdad, no bloquea si falla)
+        try {
+          if (typeof guardarSnapshot === 'function') {
+            const snapshotId = await guardarSnapshot(APP.allData, APP.historico, file.name);
+            console.info('Snapshot guardado en Firestore:', snapshotId);
+          }
+        } catch (fbErr) {
+          console.warn('Firestore no disponible, usando localStorage:', fbErr.message);
+        }
+
+        // — Caché local (siempre se guarda)
+        _saveToStorage(APP.allData, file.name);
+
+        _setImportProgress(false);
+        _showDataStatus(file.name, new Date().toLocaleString('es-MX'));
+        _ocultarEstados();
+        Configuracion();
+        renderDashboard();
+        mostrarToast(`Archivo "${file.name}" cargado correctamente.`, 'ok');
+
+      } catch (err) {
+        _setImportProgress(false);
+        console.error('Error al procesar Excel:', err);
+        mostrarToast('Error al procesar el archivo. Verifica que sea un .xlsx válido.', 'error');
       }
-
-      // — Caché local (backup para carga rápida)
-      _saveToStorage(APP.allData, file.name);
-
+      resolve();
+    };
+    reader.onerror = () => {
       _setImportProgress(false);
-      _showDataStatus(file.name, new Date().toLocaleString('es-MX'));
-      _ocultarEstados();
-      Configuracion();
-      renderDashboard();
+      mostrarToast('No se pudo leer el archivo.', 'error');
+      resolve();
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
 
-    } catch (err) {
-      _setImportProgress(false);
-      console.error('Error al procesar Excel:', err);
-      alert('Error al procesar el archivo Excel. Verifique que sea un .xlsx válido.');
-    }
-  };
-  reader.readAsArrayBuffer(file);
+// ─── Listener: selección por clic ─────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', async function (e) {
+  const file = e.target.files[0];
+  await procesarArchivoExcel(file);
+  this.value = ''; // permitir volver a seleccionar el mismo archivo
+});
+
+// ─── Listener: arrastrar y soltar sobre importZone ────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('importZone');
+  if (!zone) return;
+
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    zone.style.borderColor = '#15803d';
+    zone.style.background  = '#f0fdf4';
+  });
+  zone.addEventListener('dragleave', () => {
+    zone.style.borderColor = '';
+    zone.style.background  = '';
+  });
+  zone.addEventListener('drop', async e => {
+    e.preventDefault();
+    zone.style.borderColor = '';
+    zone.style.background  = '';
+    const file = e.dataTransfer.files[0];
+    await procesarArchivoExcel(file);
+  });
 });
 
 // ─── Inicio de la app ─────────────────────────────────────────────────────────
