@@ -99,31 +99,65 @@ async function _cargarUltimoSnapshot() {
 // FASE 5: ESTADOS DE MESES (abierto/cerrado)
 // ════════════════════════════════════════════════════════════════════════════
 async function _cargarEstadosMeses() {
-  const snap = await getDocs(collection(db, 'meses'));
-  const estados = {};
-  snap.forEach(d => { estados[d.id] = d.data(); });
-  return estados;
+  try {
+    const snap = await getDocs(collection(db, 'meses'));
+    const estados = {};
+    snap.forEach(d => { estados[d.id] = d.data(); });
+    console.log('Estados de meses cargados desde Firestore:', Object.keys(estados).length, 'meses');
+    return estados;
+  } catch (e) {
+    console.error('Error cargando estados de meses:', e.message);
+    return {};
+  }
 }
 
-async function _cerrarMes(mesKey, datosCierre) {
-  await setDoc(doc(db, 'meses', mesKey), {
-    estado:      'cerrado',
-    cerradoPor:  auth.currentUser?.email ?? 'admin',
-    cerradoEn:   serverTimestamp(),
-    ...datosCierre,
-  }, { merge: true });
+async function _cerrarMesFirestore(mesKey, datosCierre) {
+  try {
+    const datos = {
+      estado:      'cerrado',
+      cerradoPor:  auth.currentUser?.email ?? 'admin',
+      cerradoEn:   serverTimestamp(),
+      Programados: datosCierre.Programados ?? 0,
+      Ejecutados:  datosCierre.Ejecutados ?? 0,
+      Tolerancia:  datosCierre.Tolerancia ?? 0,
+      Pendientes:  datosCierre.Pendientes ?? 0,
+      Cumplimiento: datosCierre.Cumplimiento ?? 0,
+    };
 
-  await _registrarBitacora('cierre', `Cerró el mes ${mesKey}`, { mesKey });
+    await setDoc(doc(db, 'meses', mesKey), datos, { merge: true });
+    console.log('Mes cerrado en Firestore:', mesKey, datos);
+
+    // Registrar en bitácora solo si hay sesión de admin
+    if (auth.currentUser && !auth.currentUser.isAnonymous) {
+      await _registrarBitacora('cierre', `Cerró el mes ${mesKey}`, { mesKey });
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Error cerrando mes en Firestore:', e.message);
+    throw e;
+  }
 }
 
-async function _reabrirMes(mesKey) {
-  await updateDoc(doc(db, 'meses', mesKey), {
-    estado:      'abierto',
-    reabrioPor:  auth.currentUser?.email ?? 'admin',
-    reabrioEn:   serverTimestamp(),
-  });
+async function _reabrirMesFirestore(mesKey) {
+  try {
+    await updateDoc(doc(db, 'meses', mesKey), {
+      estado:      'abierto',
+      reabrioPor:  auth.currentUser?.email ?? 'admin',
+      reabrioEn:   serverTimestamp(),
+    });
 
-  await _registrarBitacora('reapertura', `Reabrió el mes ${mesKey}`, { mesKey });
+    console.log('Mes reabierto en Firestore:', mesKey);
+
+    if (auth.currentUser && !auth.currentUser.isAnonymous) {
+      await _registrarBitacora('reapertura', `Reabrió el mes ${mesKey}`, { mesKey });
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Error reabriendo mes en Firestore:', e.message);
+    throw e;
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -238,8 +272,8 @@ window.FIREBASE_AUTH         = auth;
 window.guardarSnapshot       = _guardarSnapshot;
 window.cargarUltimoSnapshot  = _cargarUltimoSnapshot;
 window.cargarEstadosMeses    = _cargarEstadosMeses;
-window.cerrarMesFirestore    = _cerrarMes;
-window.reabrirMesFirestore    = _reabrirMes;
+window.cerrarMesFirestore    = _cerrarMesFirestore;
+window.reabrirMesFirestore   = _reabrirMesFirestore;
 window.editarRegistroFirestore = _editarRegistro;
 window.cargarBitacora        = _cargarBitacora;
 window.buscarHistorialEquipo = _buscarHistorialEquipo;

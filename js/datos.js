@@ -221,16 +221,23 @@ function _loadFromStorage() {
     APP.allData      = payload.data;
     APP.filteredData = [...APP.allData];
     APP.historico    = payload.historico || [];
+
     // Restaurar estados de meses guardados localmente (cerrado/abierto)
-    if (payload.estadosMeses) {
-      APP.estadosMeses = { ...payload.estadosMeses, ...(APP.estadosMeses ?? {}) };
+    if (payload.estadosMeses && Object.keys(payload.estadosMeses).length > 0) {
+      APP.estadosMeses = payload.estadosMeses;
+      console.log('Estados de meses restaurados desde localStorage:', Object.keys(APP.estadosMeses));
     }
+
+    console.log('Datos cargados desde localStorage:', payload.data.length, 'registros');
     _actualizarBadgeHistorico();
     _showDataStatus(payload.filename, payload.savedAt);
     Configuracion();
     renderDashboard();
     return true;
-  } catch { return false; }
+  } catch (e) {
+    console.error('Error cargando desde localStorage:', e.message);
+    return false;
+  }
 }
 
 function _showDataStatus(filename, savedAt) {
