@@ -101,17 +101,53 @@ window._onAuthChange = function (user) {
   userInfo?.classList.toggle('hidden', !isAdmin);
   if (isAdmin) {
     userInfo?.classList.add('flex');
-    // Mostrar el nombre de usuario (no el email interno de Firebase)
     const displayName = Object.keys(ADMIN_USERS).find(u => ADMIN_USERS[u] === user.email) ?? user.email;
     if (emailSpan) emailSpan.textContent = displayName;
     importZone?.classList.remove('hidden');
     document.getElementById('btnCerrarMes')?.classList.remove('hidden');
+
+    // Sincronizar estados locales con Firestore cuando el admin inicia sesión
+    setTimeout(_sincronizarEstadosConFirestore, 1500);
   } else {
     userInfo?.classList.remove('flex');
     importZone?.classList.add('hidden');
     document.getElementById('btnCerrarMes')?.classList.add('hidden');
   }
 };
+
+// Sincroniza estados de meses del localStorage → Firestore (solo admin)
+async function _sincronizarEstadosConFirestore() {
+  if (!APP.estadosMeses || Object.keys(APP.estadosMeses).length === 0) return;
+  if (typeof window.cerrarMesFirestore !== 'function') return;
+
+  const estados = APP.estadosMeses;
+  let sincronizados = 0;
+
+  for (const [mesKey, datos] of Object.entries(estados)) {
+    try {
+      if (datos.estado === 'cerrado') {
+        await window.cerrarMesFirestore(mesKey, {
+          Programados: datos.Programados ?? 0,
+          Ejecutados:  datos.Ejecutados ?? 0,
+          Tolerancia:  datos.Tolerancia ?? 0,
+          Pendientes:  datos.Pendientes ?? 0,
+          Cumplimiento: datos.Cumplimiento ?? 0,
+        });
+        sincronizados++;
+      } else if (datos.estado === 'abierto') {
+        await window.reabrirMesFirestore(mesKey);
+        sincronizados++;
+      }
+    } catch (e) {
+      console.warn('Error sincronizando mes', mesKey, ':', e.message);
+    }
+  }
+
+  if (sincronizados > 0) {
+    console.log(`Sincronizados ${sincronizados} estado(s) de mes con Firestore`);
+    mostrarToast(`${sincronizados} estado(s) de mes sincronizados con la nube.`, 'ok');
+  }
+}
 
 // Enter en el campo contraseña → enviar
 document.addEventListener('DOMContentLoaded', () => {

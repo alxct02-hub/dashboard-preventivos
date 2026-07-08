@@ -98,12 +98,24 @@ async function _cargarUltimoSnapshot() {
 // ════════════════════════════════════════════════════════════════════════════
 // FASE 5: ESTADOS DE MESES (abierto/cerrado)
 // ════════════════════════════════════════════════════════════════════════════
+
+// Firestore no permite "/" en IDs de documentos — lo reemplazamos por "_"
+// Ejemplo: "1/26" → "1_26", "Enero/2026" → "Enero_2026"
+function _idMes(mesKey) {
+  return mesKey.replace(/\//g, '_');
+}
+
 async function _cargarEstadosMeses() {
   try {
     const snap = await getDocs(collection(db, 'meses'));
     const estados = {};
-    snap.forEach(d => { estados[d.id] = d.data(); });
-    console.log('Estados de meses cargados desde Firestore:', Object.keys(estados).length, 'meses');
+    snap.forEach(d => {
+      // El documento guarda el mesKey original en el campo "mesKey"
+      const data = d.data();
+      const clave = data.mesKey || d.id.replace(/_/g, '/');
+      estados[clave] = data;
+    });
+    console.log('Estados de meses cargados desde Firestore:', Object.keys(estados).length, 'meses', Object.keys(estados));
     return estados;
   } catch (e) {
     console.error('Error cargando estados de meses:', e.message);
@@ -112,52 +124,46 @@ async function _cargarEstadosMeses() {
 }
 
 async function _cerrarMesFirestore(mesKey, datosCierre) {
-  try {
-    const datos = {
-      estado:      'cerrado',
-      cerradoPor:  auth.currentUser?.email ?? 'admin',
-      cerradoEn:   serverTimestamp(),
-      Programados: datosCierre.Programados ?? 0,
-      Ejecutados:  datosCierre.Ejecutados ?? 0,
-      Tolerancia:  datosCierre.Tolerancia ?? 0,
-      Pendientes:  datosCierre.Pendientes ?? 0,
-      Cumplimiento: datosCierre.Cumplimiento ?? 0,
-    };
+  const docId = _idMes(mesKey);   // "1/26" → "1_26"
+  const datos = {
+    mesKey,                          // guardamos la clave original para leerla después
+    estado:      'cerrado',
+    cerradoPor:  auth.currentUser?.email ?? 'admin',
+    cerradoEn:   serverTimestamp(),
+    Programados: datosCierre.Programados ?? 0,
+    Ejecutados:  datosCierre.Ejecutados ?? 0,
+    Tolerancia:  datosCierre.Tolerancia ?? 0,
+    Pendientes:  datosCierre.Pendientes ?? 0,
+    Cumplimiento: datosCierre.Cumplimiento ?? 0,
+  };
 
-    await setDoc(doc(db, 'meses', mesKey), datos, { merge: true });
-    console.log('Mes cerrado en Firestore:', mesKey, datos);
+  await setDoc(doc(db, 'meses', docId), datos, { merge: true });
+  console.log('Mes cerrado en Firestore (docId:', docId, '):', datos);
 
-    // Registrar en bitácora solo si hay sesión de admin
-    if (auth.currentUser && !auth.currentUser.isAnonymous) {
-      await _registrarBitacora('cierre', `Cerró el mes ${mesKey}`, { mesKey });
-    }
-
-    return true;
-  } catch (e) {
-    console.error('Error cerrando mes en Firestore:', e.message);
-    throw e;
+  if (auth.currentUser && !auth.currentUser.isAnonymous) {
+    try { await _registrarBitacora('cierre', `Cerró el mes ${mesKey}`, { mesKey }); } catch {}
   }
+
+  return true;
 }
 
 async function _reabrirMesFirestore(mesKey) {
-  try {
-    await updateDoc(doc(db, 'meses', mesKey), {
-      estado:      'abierto',
-      reabrioPor:  auth.currentUser?.email ?? 'admin',
-      reabrioEn:   serverTimestamp(),
-    });
+  const docId = _idMes(mesKey);   // "1/26" → "1_26"
 
-    console.log('Mes reabierto en Firestore:', mesKey);
+  await setDoc(doc(db, 'meses', docId), {
+    mesKey,
+    estado:     'abierto',
+    reabrioPor: auth.currentUser?.email ?? 'admin',
+    reabrioEn:  serverTimestamp(),
+  }, { merge: true });
 
-    if (auth.currentUser && !auth.currentUser.isAnonymous) {
-      await _registrarBitacora('reapertura', `Reabrió el mes ${mesKey}`, { mesKey });
-    }
+  console.log('Mes reabierto en Firestore (docId:', docId, ')');
 
-    return true;
-  } catch (e) {
-    console.error('Error reabriendo mes en Firestore:', e.message);
-    throw e;
+  if (auth.currentUser && !auth.currentUser.isAnonymous) {
+    try { await _registrarBitacora('reapertura', `Reabrió el mes ${mesKey}`, { mesKey }); } catch {}
   }
+
+  return true;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
