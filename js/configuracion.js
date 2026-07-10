@@ -27,13 +27,6 @@ function Configuracion() {
     el.removeEventListener('change', filterAndRender);
     el.addEventListener('change', filterAndRender);
   });
-
-  // Filtro mes del indicador (mismas opciones)
-  const indSel = document.getElementById('indMesFilter');
-  indSel.innerHTML = '<option value="">Todos los meses</option>' +
-    meses.map(m => `<option value="${m}">${m}</option>`).join('');
-  indSel.removeEventListener('change', onIndMesChange);
-  indSel.addEventListener('change', onIndMesChange);
 }
 
 function filterAndRender() {

@@ -8,7 +8,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
 
-    if (btn.dataset.tab === 'indicador') renderIndicador();
     if (btn.dataset.tab === 'catalogo')  inicializarCatalogo();
     if (btn.dataset.tab === 'historial') {
       inicializarFiltrosHistorial();
@@ -27,10 +26,6 @@ function renderDashboard() {
   renderTable();     // tabla de detalle
   KPIsHistoricos();  // cierre mensual
   AnalisisIA();      // análisis inteligente
-
-  if (document.getElementById('tab-indicador').classList.contains('active')) {
-    renderIndicador();
-  }
 }
 
 // ─── Mapeo usuario → email de Firebase (agregar más cuentas aquí si se necesita) ──
@@ -96,9 +91,11 @@ window._onAuthChange = function (user) {
   const userInfo   = document.getElementById('adminUserInfo');
   const emailSpan  = document.getElementById('adminEmailDisplay');
   const importZone = document.getElementById('importZone');
+  const btnExport  = document.getElementById('btnExportarExcel');
 
   loginBtn?.classList.toggle('hidden', isAdmin);
   userInfo?.classList.toggle('hidden', !isAdmin);
+  btnExport?.classList.toggle('hidden', !isAdmin);
   if (isAdmin) {
     userInfo?.classList.add('flex');
     const displayName = Object.keys(ADMIN_USERS).find(u => ADMIN_USERS[u] === user.email) ?? user.email;
