@@ -80,7 +80,7 @@
 </head>
 <body>
 
-<!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+<!-- ══ HEADER ═══════════════════════════════════════════════════════════[...]
 <header class="site-header sticky top-0 z-40">
   <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-6">
     <img src="public/ConcrePlus-Logotipo-768x307.png" alt="ConcrePlus" class="h-11 object-contain">
@@ -147,17 +147,17 @@
     </div>
   </div>
 
-  <!-- ══ SIN DATOS ══════════════════════════════════════════════════════════ -->
-  <div id="emptyState" class="hidden mb-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+  <!-- ══ SIN DATOS ════════════════════════════════════════════════════════  [...]
+  <div id="emptyState" class="hidden mb-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center" data-admin-only="true">
     <i class="ti ti-database-off text-5xl text-gray-200 mb-4 block"></i>
     <p class="font-semibold text-gray-500 mb-1">No hay datos disponibles</p>
     <p class="text-sm text-gray-400">El administrador debe importar el archivo Excel para activar el dashboard.</p>
   </div>
 
-  <!-- ══ DASHBOARD ═════════════════════════════════════════════════════════ -->
+  <!-- ══ DASHBOARD ═════════════════════════════════════════════════════════[...]
   <div id="dashboard" class="hidden">
 
-    <!-- TABS ──────────────────────────────────────────────────────────── -->
+    <!-- TABS ──────────────────────────────────────────────────────────── [...]
     <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl shadow-sm overflow-x-auto">
       <button class="tab-btn active" data-tab="resumen">
         <i class="ti ti-layout-dashboard mr-1"></i> Resumen General
@@ -520,7 +520,7 @@
 <!-- ══ FIREBASE (type="module" — carga diferida, antes de DOMContentLoaded) ══ -->
 <script type="module" src="js/firebase.js"></script>
 
-<!-- ══ MÓDULOS JS ════════════════════════════════════════════════════════════ -->
+<!-- ══ MÓDULOS JS ═════════════════════════════════════════════════════════[...]
 <script src="js/estado.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/supabase-client.js"></script>
