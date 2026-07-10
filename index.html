@@ -207,7 +207,7 @@
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 card">
           <div class="flex items-center gap-2 mb-2">
             <i class="ti ti-chart-pie text-emerald-500 text-xl"></i>
-            <p class="text-gray-500 text-sm">% Cumplimiento</p>
+            <p class="text-gray-500 text-sm">% Ejecutado</p>
           </div>
           <p id="porcentaje" class="text-4xl font-bold text-emerald-600 mt-1">0%</p>
         </div>
@@ -233,7 +233,7 @@
           <p class="text-xs text-gray-400 mt-1" title="Mes > Mes KPI y Estatus = Pendiente">Mes > Mes KPI &amp; Pendiente</p>
         </div>
         <div class="bg-white p-6 rounded-2xl shadow-sm card" style="border-top:4px solid var(--navy)">
-          <p class="text-gray-500 text-sm">Cumplimiento Acumulado</p>
+          <p class="text-gray-500 text-sm">% de Cumplimiento</p>
           <p id="kpiCumplimientoAcum" class="text-4xl font-bold mt-2" style="color:var(--navy)">0%</p>
           <p class="text-xs text-gray-400 mt-1">Incl. tolerancias — histórico</p>
         </div>
@@ -475,10 +475,33 @@
     <!-- ════════════ PESTAÑA: HISTORIAL ══════════════════════════════════════ -->
     <div id="tab-historial" class="tab-panel">
 
-      <div class="flex items-center gap-4 mb-6">
+      <div class="flex flex-wrap items-center gap-4 mb-4">
         <h2 class="text-xl font-bold" style="color:var(--navy)">Historial por Equipo</h2>
         <span id="historialContador" class="hidden text-xs font-semibold px-3 py-1 rounded-full"
               style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
+      </div>
+
+      <!-- Filtros historial -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <select id="histFiltUbic"
+                onchange="renderHistorialCompleto()"
+                class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm">
+          <option value="">Todas las ubicaciones</option>
+        </select>
+        <select id="histFiltEquip"
+                onchange="renderHistorialCompleto()"
+                class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm">
+          <option value="">Todos los equipos</option>
+        </select>
+        <select id="histFiltMes"
+                onchange="renderHistorialCompleto()"
+                class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm">
+          <option value="">Todos los meses</option>
+        </select>
+        <button onclick="resetFiltrosHistorial()"
+                class="btn-primary rounded-xl px-6 font-semibold text-sm transition-colors shadow-sm">
+          <i class="ti ti-filter-off mr-1"></i> Limpiar
+        </button>
       </div>
 
       <div id="historialGrupos">

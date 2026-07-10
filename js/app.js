@@ -108,6 +108,11 @@ window._onAuthChange = function (user) {
     importZone?.classList.add('hidden');
     document.getElementById('btnCerrarMes')?.classList.add('hidden');
   }
+
+  // "Datos cargados" y "No hay datos disponibles" son solo para el administrador
+  document.getElementById('dataStatus')?.classList.toggle('hidden', !isAdmin);
+  const emptyState = document.getElementById('emptyState');
+  if (emptyState && !isAdmin) emptyState.classList.add('hidden');
 };
 
 // Enter en el campo contraseña → enviar

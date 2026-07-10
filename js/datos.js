@@ -203,11 +203,24 @@ function clearStoredData() {
 
 function _saveToStorage(data, filename) {
   try {
+    // APP._estadosMesesCargados se pone en true solo cuando Firestore
+    // entregó exitosamente los estados de meses.  Si no, recuperamos los
+    // que ya estaban en localStorage para no perder cierres previos.
+    let estadosMeses = APP.estadosMeses ?? {};
+    if (!APP._estadosMesesCargados && Object.keys(estadosMeses).length === 0) {
+      try {
+        const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        if (existing.estadosMeses && Object.keys(existing.estadosMeses).length > 0) {
+          estadosMeses = existing.estadosMeses;
+          APP.estadosMeses = estadosMeses;   // restaurar en memoria también
+        }
+      } catch { /* ignore */ }
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       data, filename,
       savedAt:      new Date().toLocaleString('es-MX'),
       historico:    APP.historico,
-      estadosMeses: APP.estadosMeses ?? {},  // persistir estados cerrado/abierto localmente
+      estadosMeses,
     }));
   } catch { /* dataset demasiado grande para localStorage */ }
 }
@@ -234,7 +247,8 @@ function _loadFromStorage() {
 }
 
 function _showDataStatus(filename, savedAt) {
-  document.getElementById('dataStatus').classList.remove('hidden');
+  const isAdmin = typeof _esAdmin === 'function' ? _esAdmin() : false;
+  document.getElementById('dataStatus').classList.toggle('hidden', !isAdmin);
   document.getElementById('dataStatusText').textContent =
     `Datos cargados: ${filename || 'archivo'} — guardado el ${savedAt}`;
 }
@@ -244,7 +258,8 @@ function _mostrarCargando(visible) {
 }
 
 function _mostrarSinDatos(visible) {
-  document.getElementById('emptyState')?.classList.toggle('hidden', !visible);
+  const isAdmin = typeof _esAdmin === 'function' ? _esAdmin() : false;
+  document.getElementById('emptyState')?.classList.toggle('hidden', !(visible && isAdmin));
 }
 
 function _ocultarEstados() {
@@ -357,14 +372,42 @@ function renderHistorialCompleto() {
       </div>`;
     const badge = document.getElementById('historialContador');
     if (badge) badge.classList.add('hidden');
+    _poblarFiltrosHistorial([], [], []);
     return;
   }
 
-  // Agrupar por equipo, solo servicios ejecutados
-  const grupos = {};
-  APP.allData.forEach(r => {
+  // Leer filtros activos
+  const filtUbic  = (document.getElementById('histFiltUbic')?.value  ?? '').trim();
+  const filtEquip = (document.getElementById('histFiltEquip')?.value ?? '').trim();
+  const filtMes   = (document.getElementById('histFiltMes')?.value   ?? '').trim();
+
+  // Solo servicios ejecutados
+  const ejecutados = APP.allData.filter(r => {
     const estatus = (getValue(r, 'Estatus') ?? '').toString().toLowerCase().trim();
-    if (estatus !== 'ejecutado') return;
+    return estatus === 'ejecutado';
+  });
+
+  // Poblar opciones de filtro con todos los valores únicos (antes de filtrar)
+  const todasUbic  = [...new Set(ejecutados.map(r => getValue(r, 'Ubicación') || '—').filter(v => v !== '—'))].sort((a, b) => a.localeCompare(b, 'es'));
+  const todosEquip = [...new Set(ejecutados.map(r => getValue(r, 'Economico') || getValue(r, 'Equipo') || '—').filter(v => v !== '—'))].sort((a, b) => a.localeCompare(b, 'es'));
+  // mesAñoKey ya garantiza que Mes y Año existan; filtrar '/' para filas vacías
+  const todosMeses = [...new Set(ejecutados.map(r => mesAñoKey(r)).filter(k => k && k !== '/'))].sort(sortMesAño);
+  _poblarFiltrosHistorial(todasUbic, todosEquip, todosMeses);
+
+  // Aplicar filtros
+  const filtrados = ejecutados.filter(r => {
+    const ubic  = getValue(r, 'Ubicación') || '—';
+    const equip = getValue(r, 'Economico') || getValue(r, 'Equipo') || '—';
+    const mes   = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
+    if (filtUbic  && ubic  !== filtUbic)  return false;
+    if (filtEquip && equip !== filtEquip) return false;
+    if (filtMes   && mes   !== filtMes)   return false;
+    return true;
+  });
+
+  // Agrupar por equipo
+  const grupos = {};
+  filtrados.forEach(r => {
     const equipo = (getValue(r, 'Economico') || getValue(r, 'Equipo') || '—').toString().trim();
     if (!grupos[equipo]) grupos[equipo] = [];
     grupos[equipo].push(r);
@@ -377,7 +420,7 @@ function renderHistorialCompleto() {
     container.innerHTML = `
       <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
         <i class="ti ti-history text-3xl mb-2 block"></i>
-        No hay servicios ejecutados en los datos actuales.
+        No hay servicios ejecutados con los filtros aplicados.
       </div>`;
     if (badge) badge.classList.add('hidden');
     return;
@@ -394,14 +437,14 @@ function renderHistorialCompleto() {
 
     const filas = rows.map(r => {
       const fecha  = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
-      const ot     = getValue(r, 'OT') || getValue(r, 'orden') || '—';
+      const ubic   = getValue(r, 'Ubicación') || '—';
       const tipo   = getValue(r, 'Tipo mtto') || getValue(r, 'TipoMtto') || '—';
       const costo  = formatCosto(getValue(r, 'Costo'));
       const taller = getValue(r, 'Taller') || '—';
       return `
         <tr class="hover:bg-gray-50 border-b">
           <td class="p-3 text-gray-600">${fecha}</td>
-          <td class="p-3 text-gray-700">${ot}</td>
+          <td class="p-3 text-gray-700">${ubic}</td>
           <td class="p-3 text-gray-600">${tipo}</td>
           <td class="p-3 text-right font-medium text-gray-800">${costo}</td>
           <td class="p-3 text-gray-600">${taller}</td>
@@ -421,7 +464,7 @@ function renderHistorialCompleto() {
           <thead>
             <tr style="background:var(--navy)">
               <th class="p-3 text-left text-white font-semibold text-xs uppercase">Fecha</th>
-              <th class="p-3 text-left text-white font-semibold text-xs uppercase">OT</th>
+              <th class="p-3 text-left text-white font-semibold text-xs uppercase">Ubicación</th>
               <th class="p-3 text-left text-white font-semibold text-xs uppercase">Tipo Mtto</th>
               <th class="p-3 text-right text-white font-semibold text-xs uppercase">Costo</th>
               <th class="p-3 text-left text-white font-semibold text-xs uppercase">Taller</th>
@@ -432,4 +475,36 @@ function renderHistorialCompleto() {
       </div>`;
     container.appendChild(card);
   });
+}
+
+// Puebla las opciones de los 3 selectores de filtro del historial
+function _poblarFiltrosHistorial(ubicaciones, equipos, meses) {
+  const selUbic  = document.getElementById('histFiltUbic');
+  const selEquip = document.getElementById('histFiltEquip');
+  const selMes   = document.getElementById('histFiltMes');
+  if (!selUbic || !selEquip || !selMes) return;
+
+  const valUbic  = selUbic.value;
+  const valEquip = selEquip.value;
+  const valMes   = selMes.value;
+
+  selUbic.innerHTML  = `<option value="">Todas las ubicaciones</option>` + ubicaciones.map(u => `<option value="${u}">${u}</option>`).join('');
+  selEquip.innerHTML = `<option value="">Todos los equipos</option>`     + equipos.map(e => `<option value="${e}">${e}</option>`).join('');
+  selMes.innerHTML   = `<option value="">Todos los meses</option>`       + meses.map(m => `<option value="${m}">${m}</option>`).join('');
+
+  // Restaurar selección previa iterando opciones (seguro ante valores con caracteres especiales)
+  const _restoreSelect = (sel, val) => {
+    if (!val) return;
+    for (const opt of sel.options) { if (opt.value === val) { sel.value = val; break; } }
+  };
+  _restoreSelect(selUbic,  valUbic);
+  _restoreSelect(selEquip, valEquip);
+  _restoreSelect(selMes,   valMes);
+}
+
+// Limpiar filtros del historial y re-renderizar
+function resetFiltrosHistorial() {
+  const ids = ['histFiltUbic', 'histFiltEquip', 'histFiltMes'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderHistorialCompleto();
 }

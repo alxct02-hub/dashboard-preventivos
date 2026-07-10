@@ -9,9 +9,13 @@ async function cargarEstadosMesesAsync() {
   try {
     if (typeof window.cargarEstadosMeses === 'function') {
       APP.estadosMeses = await window.cargarEstadosMeses();
+      // Marcar que Firestore entregó los estados exitosamente
+      // (aunque el resultado sea vacío — eso es un estado legítimo)
+      APP._estadosMesesCargados = true;
     }
   } catch (e) {
     console.warn('No se pudieron cargar estados de meses:', e.message);
+    APP._estadosMesesCargados = false;
   }
 }
 
@@ -251,9 +255,7 @@ function _mesesAñoActualYAnterior(formatExample) {
   const fmtMes = (idx) => isNumeric ? String(idx + 1) : MESES_ORDEN[idx];
 
   const meses = [];
-  // Año anterior completo
-  for (let i = 0; i < 12; i++) meses.push(`${fmtMes(i)}/${fmtAño(añoActual - 1)}`);
-  // Año actual hasta el mes en curso (inclusive)
+  // Solo año actual hasta el mes en curso (inclusive) — no incluir año anterior
   for (let i = 0; i <= mesActual; i++) meses.push(`${fmtMes(i)}/${fmtAño(añoActual)}`);
   return meses;
 }
