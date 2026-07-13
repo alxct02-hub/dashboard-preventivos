@@ -1,7 +1,6 @@
 // js/datos.js — Carga de datos: Firestore (primario) + localStorage (caché) + Excel (admin)
 
-// ─── Compatibilidad: esta función puede ser llamada desde versiones anteriores del código ──
-// Se define globalmente para que nunca lance ReferenceError independientemente del caché del CDN.
+// ─── Compatibilidad ─────────────────────────────────────────────────────────
 function cargarHistorico(workbook) {
   try {
     const hojaHist = workbook && workbook.SheetNames
@@ -56,14 +55,12 @@ async function procesarArchivoExcel(file) {
         APP.allData      = parsed;
         APP.filteredData = [...APP.allData];
 
-        // ─── Leer hoja HISTORICO del mismo workbook (meses cerrados anteriores) ──
         try {
           const hojaHist = workbook.SheetNames.find(n => n.trim().toUpperCase() === 'HISTORICO');
           APP.historico = hojaHist
             ? XLSX.utils.sheet_to_json(workbook.Sheets[hojaHist], { defval: '' })
                 .map(r => ({
                   ...r,
-                  // Normalizar: Excel exporta 'Estado' con mayúscula; el resto del código usa 'estado'
                   estado: (r.estado || r.Estado || '').toString().toLowerCase().trim(),
                 }))
             : (APP.historico.length ? APP.historico : []);
@@ -73,17 +70,14 @@ async function procesarArchivoExcel(file) {
 
         _setImportProgress(true, 'Guardando en nube...');
 
-        // — Guardar en Firestore (fuente de verdad, no bloquea si falla)
         try {
           if (typeof guardarSnapshot === 'function') {
-            const snapshotId = await guardarSnapshot(APP.allData, APP.historico, file.name);
-            console.info('Snapshot guardado en Firestore:', snapshotId);
+            await guardarSnapshot(APP.allData, APP.historico, file.name);
           }
         } catch (fbErr) {
-          console.warn('Firestore no disponible, usando localStorage:', fbErr.message);
+          console.warn('Firestore no disponible:', fbErr.message);
         }
 
-        // — Caché local (siempre se guarda)
         _saveToStorage(APP.allData, file.name);
 
         _setImportProgress(false);
@@ -96,7 +90,7 @@ async function procesarArchivoExcel(file) {
       } catch (err) {
         _setImportProgress(false);
         console.error('Error al procesar Excel:', err);
-        mostrarToast('Error al procesar el archivo. Verifica que sea un .xlsx válido.', 'error');
+        mostrarToast('Error al procesar el archivo.', 'error');
       }
       resolve();
     };
@@ -109,60 +103,30 @@ async function procesarArchivoExcel(file) {
   });
 }
 
-// ─── Listener: selección por clic ─────────────────────────────────────────────
+// Listeners
 document.getElementById('fileInput').addEventListener('change', async function (e) {
   const file = e.target.files[0];
   await procesarArchivoExcel(file);
-  this.value = ''; // permitir volver a seleccionar el mismo archivo
+  this.value = '';
 });
 
-// ─── Listener: arrastrar y soltar sobre importZone ────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const zone = document.getElementById('importZone');
-  if (!zone) return;
-
-  zone.addEventListener('dragover', e => {
-    e.preventDefault();
-    zone.style.borderColor = '#15803d';
-    zone.style.background  = '#f0fdf4';
-  });
-  zone.addEventListener('dragleave', () => {
-    zone.style.borderColor = '';
-    zone.style.background  = '';
-  });
-  zone.addEventListener('drop', async e => {
-    e.preventDefault();
-    zone.style.borderColor = '';
-    zone.style.background  = '';
-    const file = e.dataTransfer.files[0];
-    await procesarArchivoExcel(file);
-  });
-});
-
-// ─── Inicio de la app ───────────────────────────────────────────────────────[...]
+// Carga inicial
 async function CargaDatos() {
   _mostrarCargando(true);
   _mostrarSinDatos(false);
 
-  // 0) Cargar estados de meses desde Firestore
   if (typeof cargarEstadosMesesAsync === 'function') {
     await cargarEstadosMesesAsync();
   }
 
-  // 1) Intentar Firestore (fuente de verdad)
   try {
     if (typeof cargarUltimoSnapshot === 'function') {
       const snapshot = await cargarUltimoSnapshot();
       if (snapshot && snapshot.registros?.length > 0) {
-        APP.allData      = snapshot.registros;
+        APP.allData = snapshot.registros;
         APP.filteredData = [...APP.allData];
-
-        if (snapshot.historicoRaw?.length > 0) {
-          APP.historico = snapshot.historicoRaw;
-          _actualizarBadgeHistorico();
-        }
-
-        _saveToStorage(APP.allData, snapshot.filename);   // actualizar caché local
+        if (snapshot.historicoRaw?.length > 0) APP.historico = snapshot.historicoRaw;
+        _saveToStorage(APP.allData, snapshot.filename);
         _mostrarCargando(false);
         _showDataStatus(snapshot.filename, snapshot.savedAt);
         Configuracion();
@@ -170,17 +134,15 @@ async function CargaDatos() {
         return;
       }
     }
-  } catch (fbErr) {
-    console.warn('Firestore no disponible, intentando localStorage:', fbErr.message);
+  } catch (e) {
+    console.warn('Firestore fallback to localStorage', e.message);
   }
 
-  // 2) Fallback: localStorage (offline o primer acceso antes de Firestore)
   if (_loadFromStorage()) {
     _mostrarCargando(false);
     return;
   }
 
-  // 3) Sin datos — mostrar panel informativo
   _mostrarCargando(false);
   _mostrarSinDatos(true);
 }
