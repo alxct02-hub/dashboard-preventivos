@@ -6,6 +6,7 @@
 APP.estadosMeses = {};  // { "Junio/2026": { estado: "cerrado", ... } }
 
 async function cargarEstadosMesesAsync() {
+  // Primero intentar cargar desde localStorage (respaldo inmediato)
   try {
     if (typeof window.cargarEstadosMeses === 'function') {
       APP.estadosMeses = await window.cargarEstadosMeses();
@@ -17,6 +18,9 @@ async function cargarEstadosMesesAsync() {
     console.warn('No se pudieron cargar estados de meses:', e.message);
     APP._estadosMesesCargados = false;
   }
+
+  // Guardar en localStorage para la próxima vez
+  _persistirHistoricoEnStorage();
 }
 
 function mesEstaCerrado(mesKey) {
@@ -38,15 +42,19 @@ function abrirModalCierreMes() {
     ...Object.entries(APP.estadosMeses ?? {}).filter(([, v]) => v.estado === 'cerrado').map(([k]) => k),
   ]);
 
-  // Meses disponibles: datos actuales + Firestore + año actual completo + año anterior
-  // (garantiza que el admin siempre pueda cerrar cualquier mes pasado)
+  // Meses disponibles: datos actuales + meses del año 2026
   const mesesData      = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))];
-  const mesesFirestore = Object.keys(APP.estadosMeses ?? {});
   // Tomar un ejemplo de clave para detectar el formato (numérico vs texto, año corto vs largo)
-  const mesesReferencia = _mesesAñoActualYAnterior(mesesData[0] ?? mesesFirestore[0] ?? null);
-  const disponibles    = [...new Set([...mesesData, ...mesesFirestore, ...mesesReferencia])]
-    .filter(m => !histKeys.has(m))
-    .sort((a, b) => sortMesAño(b, a)); // más reciente primero
+  const formatExample = mesesData[0] ?? '7/26';
+  const mesesReferencia = _mesesAñoActual(formatExample);
+
+  // Solo incluir meses del año 2026 (formato 26 o 2026)
+  const disponibles = [...new Set([...mesesData, ...mesesReferencia])]
+    .filter(m => {
+      const año = (m.split('/')[1] || '');
+      return (año === '26' || año === '2026') && !histKeys.has(m);
+    })
+    .sort((a, b) => sortMesAño(b, a));
 
   if (disponibles.length === 0) {
     mostrarToast('Todos los meses ya tienen cierre.', 'info');
@@ -107,7 +115,7 @@ function actualizarPreviewCierre() {
 
 async function confirmarCierreMes() {
   if (!_esAdmin()) {
-    mostrarToast('Solo el administrador puede cerrar meses.', 'warn');
+    mostrarToast('Solo el administrador puede cerrar meses. Inicia sesión primero.', 'warn');
     return;
   }
   const mesKey = document.getElementById('cerrarMesSelect').value;
@@ -121,6 +129,7 @@ async function confirmarCierreMes() {
   const pend  = rows.filter(x => x._cls.vencido).length;
   const cumpl = pct(ejec + tol, prog);
 
+  // Actualizar historico local
   const existe = APP.historico.findIndex(r => r.Mes === mes && r.Año === año);
   if (existe >= 0) APP.historico.splice(existe, 1);
 
@@ -129,28 +138,46 @@ async function confirmarCierreMes() {
     Programados: prog, Ejecutados: ejec,
     Tolerancia: tol, Pendientes: pend, Cumplimiento: cumpl,
     estado: 'cerrado',
+    cerradoPor: window._fbUser?.email ?? 'admin',
   });
   APP.historico.sort((a, b) => sortMesAño(`${a.Mes}/${a.Año}`, `${b.Mes}/${b.Año}`));
 
-  // Actualizar estado local SIEMPRE, independientemente de si Firestore tiene éxito
-  APP.estadosMeses[mesKey] = { estado: 'cerrado' };
+  // Actualizar estado local
+  APP.estadosMeses[mesKey] = {
+    estado:      'cerrado',
+    cerradoPor:  window._fbUser?.email ?? 'admin',
+    Programados: prog, Ejecutados: ejec, Tolerancia: tol, Pendientes: pend, Cumplimiento: cumpl,
+  };
 
-  // Intentar persistir en Firestore (no bloquea si falla)
+  // Persistir en localStorage SIEMPRE (respaldo)
+  _persistirHistoricoEnStorage();
+
+  // Intentar persistir en Firestore
+  let firestoreOk = false;
   try {
-    if (typeof cerrarMesFirestore === 'function') {
-      await cerrarMesFirestore(mesKey, {
+    if (typeof window.cerrarMesFirestore === 'function') {
+      await window.cerrarMesFirestore(mesKey, {
         Programados: prog, Ejecutados: ejec, Tolerancia: tol, Pendientes: pend, Cumplimiento: cumpl,
       });
+      firestoreOk = true;
+      console.log('Mes guardado en Firestore exitosamente:', mesKey);
     }
   } catch (e) {
-    console.warn('Error guardando cierre en Firestore (estado guardado localmente):', e.message);
+    console.error('Error guardando en Firestore:', e.message);
+    mostrarToast('Advertencia: guardado solo localmente. ' + e.message, 'warn');
   }
 
-  _persistirHistoricoEnStorage();
   cerrarModal();
   _actualizarBadgeHistorico();
-  KPIsHistoricos();   // refrescar tabla con el nuevo badge "cerrado"
-  mostrarToast(`Mes ${mesKey} cerrado correctamente.`, 'ok');
+  KPIsHistoricos();
+
+  if (firestoreOk) {
+    mostrarToast(`Mes ${mesKey} cerrado y sincronizado con la nube.`, 'ok');
+  } else if (typeof window.cerrarMesFirestore === 'function') {
+    mostrarToast(`Mes ${mesKey} cerrado (solo local). Verifica permisos de admin.`, 'warn');
+  } else {
+    mostrarToast(`Mes ${mesKey} cerrado (modo offline).`, 'ok');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -164,26 +191,39 @@ async function reabrirMes(mesKey) {
 
   if (!confirm(`¿Reabrir el mes ${mesKey}? Se permitirá editar nuevamente.`)) return;
 
-  // Actualizar estado local SIEMPRE, independientemente de si Firestore tiene éxito
-  APP.estadosMeses[mesKey] = { estado: 'abierto' };
+  // Actualizar estado local
+  APP.estadosMeses[mesKey] = {
+    estado:     'abierto',
+    reabrioPor: window._fbUser?.email ?? 'admin',
+  };
 
   const [mes, año] = mesKey.split('/');
   const histIdx = APP.historico.findIndex(r => r.Mes === mes && r.Año === año);
   if (histIdx >= 0) APP.historico[histIdx].estado = 'abierto';
 
-  // Intentar persistir en Firestore (no bloquea si falla)
+  // Persistir en localStorage SIEMPRE
+  _persistirHistoricoEnStorage();
+
+  // Intentar persistir en Firestore
+  let firestoreOk = false;
   try {
-    if (typeof reabrirMesFirestore === 'function') {
-      await reabrirMesFirestore(mesKey);
+    if (typeof window.reabrirMesFirestore === 'function') {
+      await window.reabrirMesFirestore(mesKey);
+      firestoreOk = true;
+      console.log('Mes reabierto en Firestore:', mesKey);
     }
   } catch (e) {
-    console.warn('Error reabriendo mes en Firestore (estado actualizado localmente):', e.message);
+    console.error('Error reabriendo en Firestore:', e.message);
   }
 
-  _persistirHistoricoEnStorage();
   _actualizarBadgeHistorico();
-  KPIsHistoricos();   // refrescar tabla con el badge "abierto" y sin botón Reabrir
-  mostrarToast(`Mes ${mesKey} reabierto.`, 'ok');
+  KPIsHistoricos();
+
+  if (firestoreOk) {
+    mostrarToast(`Mes ${mesKey} reabierto y sincronizado con la nube.`, 'ok');
+  } else {
+    mostrarToast(`Mes ${mesKey} reabierto (solo local).`, 'warn');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -215,12 +255,14 @@ function exportarExcelConHistorico() {
 function _persistirHistoricoEnStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const payload = JSON.parse(raw);
-    payload.historico    = APP.historico;
-    payload.estadosMeses = APP.estadosMeses ?? {};   // persistir cierres/aperturas localmente
+    let payload = raw ? JSON.parse(raw) : {};
+    payload.historico    = APP.historico ?? [];
+    payload.estadosMeses = APP.estadosMeses ?? {};
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  } catch { /* ignore */ }
+    console.log('Persistido en localStorage:', Object.keys(payload.estadosMeses).length, 'estados de meses');
+  } catch (e) {
+    console.error('Error persistiendo en localStorage:', e.message);
+  }
 }
 
 function _actualizarBadgeHistorico() {
@@ -235,23 +277,23 @@ function _actualizarBadgeHistorico() {
   }
 }
 
-// Genera todos los meses del año actual (hasta el mes en curso) + año anterior completo.
+// Genera todos los meses del año 2026 hasta el mes actual.
 // Detecta automáticamente el formato usado en los datos (p. ej. "7/26" vs "Julio/2026").
-// formatExample: una clave existente como "7/26" o "Julio/2026"; si no hay datos, devuelve [].
-function _mesesAñoActualYAnterior(formatExample) {
-  if (!formatExample) return [];
+function _mesesAñoActual(formatExample) {
+  if (!formatExample) {
+    // Si no hay datos, usar formato numérico con año corto (estándar del sistema)
+    const ahora = new Date();
+    const mesActual = ahora.getMonth();
+    const meses = [];
+    for (let i = 0; i <= mesActual; i++) meses.push(`${i + 1}/26`);
+    return meses;
+  }
 
   const [mesStr, añoStr] = formatExample.split('/');
-  // ¿El mes es numérico? (e.g. "7")
   const isNumeric  = /^\d+$/.test((mesStr || '').trim());
-  // ¿El año es de 2 dígitos? (e.g. "26")
   const isShortYr  = añoStr && añoStr.trim().length === 2;
 
-  const ahora     = new Date();
-  const añoActual = ahora.getFullYear();
-  const mesActual = ahora.getMonth(); // 0-based
-
-  const fmtAño = (y) => isShortYr ? String(y).slice(-2) : String(y);
+  const fmtAño = () => isShortYr ? '26' : '2026';
   const fmtMes = (idx) => isNumeric ? String(idx + 1) : MESES_ORDEN[idx];
 
   const meses = [];

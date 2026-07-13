@@ -67,29 +67,27 @@ function procesarDatos() {
   const heredados     = c.filter(x => x._cls.heredado).length;   // mes > mesKPI y pendiente
   const costoTotal    = c.reduce((s, r) => s + parseCosto(r), 0);
 
-  // 4. Histórico mergeado
-  APP.metricasPorMes = calcularMetricasPorMesCompleto();
+  // 4. Histórico mergeado — usa datos filtrados para que el Cierre Mensual responda a filtros
+  APP.metricasPorMes = calcularMetricasPorMesFiltrado();
 
-  // 5. Cumplimiento acumulado desde histórico mergeado
-  const vals = Object.values(APP.metricasPorMes);
-  const ejAcum   = vals.reduce((s, d) => s + d.ejecutados, 0);
-  const tolAcum  = vals.reduce((s, d) => s + d.tolerancia, 0);
-  const progAcum = vals.reduce((s, d) => s + d.programados, 0);
-  const cumplimientoAcum = pct(ejAcum + tolAcum, progAcum);
+  // 5. Nuevos KPIs: % Tolerancia e Índice de Desempeño Preventivo
+  const pctCumplimiento = pct(ejecutados, programados);
+  const pctTolerancia   = pct(enTolerancia, programados);
+  const indiceDesempeno = pctCumplimiento + pctTolerancia;
 
   APP.metricas = {
     programados, ejecutados, enTolerancia, vencidos, reprogramados,
-    heredados, costoTotal, cumplimientoAcum
+    heredados, costoTotal, pctCumplimiento, pctTolerancia, indiceDesempeno
   };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// HISTORICO MERGEADO (congelados + vivos)
+// HISTORICO MERGEADO (congelados + vivos) — Filtrado
 // ════════════════════════════════════════════════════════════════════════════
-function calcularMetricasPorMesCompleto() {
-  // Desde DATA usando clasificación
+function calcularMetricasPorMesFiltrado() {
+  // Desde DATA filtrada usando clasificación
   const dataMeses = {};
-  APP.clasificados.forEach(r => {
+  APP.clasificadosFiltrados.forEach(r => {
     const key = mesAñoKey(r);
     if (!key) return;
     if (!dataMeses[key]) dataMeses[key] = { programados: 0, ejecutados: 0, tolerancia: 0, pendientes: 0, reprogramados: 0, heredados: 0, vencidos: 0, costo: 0, esHistorico: false };
@@ -107,18 +105,36 @@ function calcularMetricasPorMesCompleto() {
   const merged = { ...dataMeses };
   APP.historico.forEach(r => {
     const key = `${r.Mes}/${r.Año}`;
-    merged[key] = {
-      programados:  r.Programados,
-      ejecutados:   r.Ejecutados,
-      tolerancia:   r.Tolerancia,
-      pendientes:   r.Pendientes,
-      reprogramados: 0, // histórico no guarda este detalle
-      heredados:    0,
-      vencidos:     r.Pendientes, // alias para compatibilidad
-      cumplFijo:    r.Cumplimiento,
-      costo:        dataMeses[key] ? dataMeses[key].costo : 0,
-      esHistorico:  true,
-    };
+    // Solo incluir meses que están presentes en los datos filtrados
+    // (respeta el filtro de mes; otros filtros no aplican al histórico)
+    if (!dataMeses[key] && r.estado === 'cerrado') {
+      merged[key] = {
+        programados:  r.Programados,
+        ejecutados:   r.Ejecutados,
+        tolerancia:   r.Tolerancia,
+        pendientes:   r.Pendientes,
+        reprogramados: 0,
+        heredados:    0,
+        vencidos:     r.Pendientes,
+        cumplFijo:    r.Cumplimiento,
+        costo:        0,
+        esHistorico:  true,
+      };
+    } else if (dataMeses[key] && r.estado === 'cerrado') {
+      merged[key] = {
+        programados:  r.Programados,
+        ejecutados:   r.Ejecutados,
+        tolerancia:   r.Tolerancia,
+        pendientes:   r.Pendientes,
+        reprogramados: dataMeses[key].reprogramados,
+        heredados:    dataMeses[key].heredados,
+        vencidos:     r.Pendientes,
+        cumplFijo:    r.Cumplimiento,
+        costo:        dataMeses[key].costo,
+        esHistorico:  true,
+      };
+    }
   });
   return merged;
 }
+

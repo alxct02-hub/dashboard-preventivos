@@ -98,32 +98,72 @@ async function _cargarUltimoSnapshot() {
 // ════════════════════════════════════════════════════════════════════════════
 // FASE 5: ESTADOS DE MESES (abierto/cerrado)
 // ════════════════════════════════════════════════════════════════════════════
-async function _cargarEstadosMeses() {
-  const snap = await getDocs(collection(db, 'meses'));
-  const estados = {};
-  snap.forEach(d => { estados[d.id] = d.data(); });
-  return estados;
+
+// Firestore no permite "/" en IDs de documentos — lo reemplazamos por "_"
+// Ejemplo: "1/26" → "1_26", "Enero/2026" → "Enero_2026"
+function _idMes(mesKey) {
+  return mesKey.replace(/\//g, '_');
 }
 
-async function _cerrarMes(mesKey, datosCierre) {
-  await setDoc(doc(db, 'meses', mesKey), {
+async function _cargarEstadosMeses() {
+  try {
+    const snap = await getDocs(collection(db, 'meses'));
+    const estados = {};
+    snap.forEach(d => {
+      // El documento guarda el mesKey original en el campo "mesKey"
+      const data = d.data();
+      const clave = data.mesKey || d.id.replace(/_/g, '/');
+      estados[clave] = data;
+    });
+    console.log('Estados de meses cargados desde Firestore:', Object.keys(estados).length, 'meses', Object.keys(estados));
+    return estados;
+  } catch (e) {
+    console.error('Error cargando estados de meses:', e.message);
+    return {};
+  }
+}
+
+async function _cerrarMesFirestore(mesKey, datosCierre) {
+  const docId = _idMes(mesKey);   // "1/26" → "1_26"
+  const datos = {
+    mesKey,                          // guardamos la clave original para leerla después
     estado:      'cerrado',
     cerradoPor:  auth.currentUser?.email ?? 'admin',
     cerradoEn:   serverTimestamp(),
-    ...datosCierre,
-  }, { merge: true });
+    Programados: datosCierre.Programados ?? 0,
+    Ejecutados:  datosCierre.Ejecutados ?? 0,
+    Tolerancia:  datosCierre.Tolerancia ?? 0,
+    Pendientes:  datosCierre.Pendientes ?? 0,
+    Cumplimiento: datosCierre.Cumplimiento ?? 0,
+  };
 
-  await _registrarBitacora('cierre', `Cerró el mes ${mesKey}`, { mesKey });
+  await setDoc(doc(db, 'meses', docId), datos, { merge: true });
+  console.log('Mes cerrado en Firestore (docId:', docId, '):', datos);
+
+  if (auth.currentUser && !auth.currentUser.isAnonymous) {
+    try { await _registrarBitacora('cierre', `Cerró el mes ${mesKey}`, { mesKey }); } catch {}
+  }
+
+  return true;
 }
 
-async function _reabrirMes(mesKey) {
-  await updateDoc(doc(db, 'meses', mesKey), {
-    estado:      'abierto',
-    reabrioPor:  auth.currentUser?.email ?? 'admin',
-    reabrioEn:   serverTimestamp(),
-  });
+async function _reabrirMesFirestore(mesKey) {
+  const docId = _idMes(mesKey);   // "1/26" → "1_26"
 
-  await _registrarBitacora('reapertura', `Reabrió el mes ${mesKey}`, { mesKey });
+  await setDoc(doc(db, 'meses', docId), {
+    mesKey,
+    estado:     'abierto',
+    reabrioPor: auth.currentUser?.email ?? 'admin',
+    reabrioEn:  serverTimestamp(),
+  }, { merge: true });
+
+  console.log('Mes reabierto en Firestore (docId:', docId, ')');
+
+  if (auth.currentUser && !auth.currentUser.isAnonymous) {
+    try { await _registrarBitacora('reapertura', `Reabrió el mes ${mesKey}`, { mesKey }); } catch {}
+  }
+
+  return true;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -238,8 +278,8 @@ window.FIREBASE_AUTH         = auth;
 window.guardarSnapshot       = _guardarSnapshot;
 window.cargarUltimoSnapshot  = _cargarUltimoSnapshot;
 window.cargarEstadosMeses    = _cargarEstadosMeses;
-window.cerrarMesFirestore    = _cerrarMes;
-window.reabrirMesFirestore    = _reabrirMes;
+window.cerrarMesFirestore    = _cerrarMesFirestore;
+window.reabrirMesFirestore   = _reabrirMesFirestore;
 window.editarRegistroFirestore = _editarRegistro;
 window.cargarBitacora        = _cargarBitacora;
 window.buscarHistorialEquipo = _buscarHistorialEquipo;

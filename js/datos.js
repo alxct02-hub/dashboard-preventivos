@@ -234,16 +234,23 @@ function _loadFromStorage() {
     APP.allData      = payload.data;
     APP.filteredData = [...APP.allData];
     APP.historico    = payload.historico || [];
+
     // Restaurar estados de meses guardados localmente (cerrado/abierto)
-    if (payload.estadosMeses) {
-      APP.estadosMeses = { ...payload.estadosMeses, ...(APP.estadosMeses ?? {}) };
+    if (payload.estadosMeses && Object.keys(payload.estadosMeses).length > 0) {
+      APP.estadosMeses = payload.estadosMeses;
+      console.log('Estados de meses restaurados desde localStorage:', Object.keys(APP.estadosMeses));
     }
+
+    console.log('Datos cargados desde localStorage:', payload.data.length, 'registros');
     _actualizarBadgeHistorico();
     _showDataStatus(payload.filename, payload.savedAt);
     Configuracion();
     renderDashboard();
     return true;
-  } catch { return false; }
+  } catch (e) {
+    console.error('Error cargando desde localStorage:', e.message);
+    return false;
+  }
 }
 
 function _showDataStatus(filename, savedAt) {
@@ -358,19 +365,61 @@ function _persistirCambiosLocales() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// FASE 9: HISTORIAL POR EQUIPO — lista agrupada por equipo, solo ejecutados
+// FASE 9: HISTORIAL POR EQUIPO — con filtros
 // ════════════════════════════════════════════════════════════════════════════
-function renderHistorialCompleto() {
-  const container = document.getElementById('historialGrupos');
-  if (!container) return;
+let _historialFiltrado = [];
 
-  if (APP.allData.length === 0) {
-    container.innerHTML = `
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
-        <i class="ti ti-history text-3xl mb-2 block"></i>
-        No hay datos cargados.
-      </div>`;
-    const badge = document.getElementById('historialContador');
+function inicializarFiltrosHistorial() {
+  const selUbicacion = document.getElementById('histFiltroUbicacion');
+  const selMes       = document.getElementById('histFiltroMes');
+
+  if (!selUbicacion || !selMes) return;
+
+  // Ubicaciones únicas
+  const ubicaciones = [...new Set(APP.allData.map(r => getValue(r, 'Ubicación')).filter(Boolean))].sort();
+  selUbicacion.innerHTML = '<option value="">Todas las plantas</option>' +
+    ubicaciones.map(u => `<option value="${u}">${u}</option>`).join('');
+
+  // Meses únicos (solo 2026)
+  const meses = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))]
+    .filter(m => { const a = m.split('/')[1]; return a === '26' || a === '2026'; })
+    .sort((a, b) => sortMesAño(b, a));
+  selMes.innerHTML = '<option value="">Todos los meses</option>' +
+    meses.map(m => `<option value="${m}">${m}</option>`).join('');
+}
+
+function filtrarHistorial() {
+  const ubicacion = document.getElementById('histFiltroUbicacion')?.value || '';
+  const equipo    = document.getElementById('histFiltroEquipo')?.value.trim().toLowerCase() || '';
+  const mes       = document.getElementById('histFiltroMes')?.value || '';
+
+  _historialFiltrado = APP.allData.filter(r => {
+    // Solo servicios EJECUTADOS
+    const estatus = (getValue(r, 'Estatus') ?? '').toString().toLowerCase().trim();
+    if (estatus !== 'ejecutado') return false;
+
+    if (ubicacion && getValue(r, 'Ubicación') !== ubicacion) return false;
+    if (equipo) {
+      const cod = (getValue(r, 'Economico') || getValue(r, 'Equipo') || '').toString().toLowerCase();
+      if (!cod.includes(equipo)) return false;
+    }
+    if (mes && mesAñoKey(r) !== mes) return false;
+    return true;
+  });
+
+  renderHistorialAgrupado();
+}
+
+function renderHistorialAgrupado() {
+  const tbody = document.getElementById('historialBody');
+  const titulo = document.getElementById('historialTitulo');
+  const badge  = document.getElementById('historialContador');
+
+  if (!tbody) return;
+
+  if (_historialFiltrado.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-400">No hay servicios ejecutados que coincidan con los filtros</td></tr>';
+    if (titulo) titulo.textContent = 'Sin resultados';
     if (badge) badge.classList.add('hidden');
     _poblarFiltrosHistorial([], [], []);
     return;
@@ -427,11 +476,13 @@ function renderHistorialCompleto() {
   }
 
   if (badge) {
-    badge.textContent = `${equipos.length} equipo(s)`;
+    const totalServicios = _historialFiltrado.length;
+    badge.textContent = `${equipos.length} unidad(es), ${totalServicios} servicio(s)`;
     badge.classList.remove('hidden');
   }
 
-  container.innerHTML = '';
+  tbody.innerHTML = '';
+
   equipos.forEach(equipo => {
     const rows = grupos[equipo];
 
