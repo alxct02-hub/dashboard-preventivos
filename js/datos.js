@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ─── Inicio de la app ─────────────────────────────────────────────────────────
+// ─── Inicio de la app ───────────────────────────────────────────────────────[...]
 async function CargaDatos() {
   _mostrarCargando(true);
   _mostrarSinDatos(false);
@@ -185,7 +185,7 @@ async function CargaDatos() {
   _mostrarSinDatos(true);
 }
 
-// ─── Limpiar caché local ──────────────────────────────────────────────────────
+// ─── Limpiar caché local ───────────────────────────────────────────────────────
 function clearStoredData() {
   if (!confirm('¿Deseas limpiar la caché local? Los datos en la nube se conservan.')) return;
   localStorage.removeItem(STORAGE_KEY);
@@ -199,7 +199,7 @@ function clearStoredData() {
   _mostrarSinDatos(true);
 }
 
-// ─── Helpers privados ─────────────────────────────────────────────────────────
+// ─── Helpers privados ───────────────────────────────────────────────────────[...]
 
 function _saveToStorage(data, filename) {
   try {
@@ -281,9 +281,9 @@ function _setImportProgress(active, msg = '') {
   if (fi)  fi.disabled = active;
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════[...]
 // FASE 6: MODAL DE EDICIÓN
-// ════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════[...]
 let _idxEdicion = null;
 
 function abrirModalEdicion(idx) {
@@ -364,21 +364,28 @@ function _persistirCambiosLocales() {
   _saveToStorage(APP.allData, 'datos_editados');
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════[...]
 // FASE 9: HISTORIAL POR EQUIPO — con filtros
-// ════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════[...]
 let _historialFiltrado = [];
 
 function inicializarFiltrosHistorial() {
-  const selUbicacion = document.getElementById('histFiltroUbicacion');
-  const selMes       = document.getElementById('histFiltroMes');
+  // ✅ CORREGIDO: IDs correctos según HTML
+  const selUbicacion = document.getElementById('histFiltUbic');
+  const selEquipo    = document.getElementById('histFiltEquip');
+  const selMes       = document.getElementById('histFiltMes');
 
-  if (!selUbicacion || !selMes) return;
+  if (!selUbicacion || !selEquipo || !selMes) return;
 
   // Ubicaciones únicas
   const ubicaciones = [...new Set(APP.allData.map(r => getValue(r, 'Ubicación')).filter(Boolean))].sort();
   selUbicacion.innerHTML = '<option value="">Todas las plantas</option>' +
     ubicaciones.map(u => `<option value="${u}">${u}</option>`).join('');
+
+  // Equipos únicos
+  const equipos = [...new Set(APP.allData.map(r => getValue(r, 'Economico') || getValue(r, 'Equipo')).filter(Boolean))].sort();
+  selEquipo.innerHTML = '<option value="">Todos los equipos</option>' +
+    equipos.map(e => `<option value="${e}">${e}</option>`).join('');
 
   // Meses únicos (solo 2026)
   const meses = [...new Set(APP.allData.map(mesAñoKey).filter(Boolean))]
@@ -389,9 +396,10 @@ function inicializarFiltrosHistorial() {
 }
 
 function filtrarHistorial() {
-  const ubicacion = document.getElementById('histFiltroUbicacion')?.value || '';
-  const equipo    = document.getElementById('histFiltroEquipo')?.value.trim().toLowerCase() || '';
-  const mes       = document.getElementById('histFiltroMes')?.value || '';
+  // ✅ CORREGIDO: IDs correctos según HTML
+  const ubicacion = document.getElementById('histFiltUbic')?.value || '';
+  const equipo    = document.getElementById('histFiltEquip')?.value.trim().toLowerCase() || '';
+  const mes       = document.getElementById('histFiltMes')?.value || '';
 
   _historialFiltrado = APP.allData.filter(r => {
     // Solo servicios EJECUTADOS
@@ -411,21 +419,11 @@ function filtrarHistorial() {
 }
 
 function renderHistorialAgrupado() {
-  const tbody = document.getElementById('historialBody');
-  const titulo = document.getElementById('historialTitulo');
-  const badge  = document.getElementById('historialContador');
+  // ✅ CORREGIDO: Definir container antes de usarla
+  const container = document.getElementById('historialGrupos');
+  if (!container) return;
 
-  if (!tbody) return;
-
-  if (_historialFiltrado.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-400">No hay servicios ejecutados que coincidan con los filtros</td></tr>';
-    if (titulo) titulo.textContent = 'Sin resultados';
-    if (badge) badge.classList.add('hidden');
-    _poblarFiltrosHistorial([], [], []);
-    return;
-  }
-
-  // Leer filtros activos
+  // ✅ CORREGIDO: Usar IDs correctos
   const filtUbic  = (document.getElementById('histFiltUbic')?.value  ?? '').trim();
   const filtEquip = (document.getElementById('histFiltEquip')?.value ?? '').trim();
   const filtMes   = (document.getElementById('histFiltMes')?.value   ?? '').trim();
@@ -464,6 +462,7 @@ function renderHistorialAgrupado() {
 
   const equipos = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es'));
 
+  // ✅ CORREGIDO: Usar variable correcta badge en lugar de redefinirla
   const badge = document.getElementById('historialContador');
   if (equipos.length === 0) {
     container.innerHTML = `
@@ -481,7 +480,7 @@ function renderHistorialAgrupado() {
     badge.classList.remove('hidden');
   }
 
-  tbody.innerHTML = '';
+  container.innerHTML = '';
 
   equipos.forEach(equipo => {
     const rows = grupos[equipo];
@@ -489,7 +488,8 @@ function renderHistorialAgrupado() {
     const filas = rows.map(r => {
       const fecha  = `${getValue(r, 'Mes')}/${getValue(r, 'Año')}`;
       const ubic   = getValue(r, 'Ubicación') || '—';
-      const tipo   = getValue(r, 'Tipo mtto') || getValue(r, 'TipoMtto') || '—';
+      // ✅ CORREGIDO: Usar nombre correcto del campo con espacio
+      const tipo   = getValue(r, 'Tipo Mtto') || getValue(r, 'Tipo mtto') || '—';
       const costo  = formatCosto(getValue(r, 'Costo'));
       const taller = getValue(r, 'Taller') || '—';
       return `
@@ -530,6 +530,7 @@ function renderHistorialAgrupado() {
 
 // Puebla las opciones de los 3 selectores de filtro del historial
 function _poblarFiltrosHistorial(ubicaciones, equipos, meses) {
+  // ✅ CORREGIDO: IDs correctos según HTML
   const selUbic  = document.getElementById('histFiltUbic');
   const selEquip = document.getElementById('histFiltEquip');
   const selMes   = document.getElementById('histFiltMes');
@@ -555,7 +556,9 @@ function _poblarFiltrosHistorial(ubicaciones, equipos, meses) {
 
 // Limpiar filtros del historial y re-renderizar
 function resetFiltrosHistorial() {
+  // ✅ CORREGIDO: IDs correctos según HTML
   const ids = ['histFiltUbic', 'histFiltEquip', 'histFiltMes'];
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  renderHistorialCompleto();
+  // ✅ CORREGIDO: Llamar a la función correcta
+  renderHistorialAgrupado();
 }
