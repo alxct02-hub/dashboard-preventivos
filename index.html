@@ -162,14 +162,11 @@
       <button class="tab-btn active" data-tab="resumen">
         <i class="ti ti-layout-dashboard mr-1"></i> Resumen General
       </button>
-      <button class="tab-btn" data-tab="indicador">
-        <i class="ti ti-chart-bar mr-1"></i> Indicador por Tipo de Equipo
-      </button>
       <button class="tab-btn" data-tab="catalogo">
         <i class="ti ti-books mr-1"></i> Catálogo de Información
       </button>
       <button class="tab-btn" data-tab="historial">
-        <i class="ti ti-history mr-1"></i> Historial por Equipo
+        <i class="ti ti-history mr-1"></i> Historial por Unidad
       </button>
     </div>
 
@@ -207,7 +204,7 @@
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 card">
           <div class="flex items-center gap-2 mb-2">
             <i class="ti ti-chart-pie text-emerald-500 text-xl"></i>
-            <p class="text-gray-500 text-sm">% Ejecutado</p>
+            <p class="text-gray-500 text-sm">% Cumplimiento</p>
           </div>
           <p id="porcentaje" class="text-4xl font-bold text-emerald-600 mt-1">0%</p>
         </div>
@@ -232,10 +229,15 @@
           <p id="kpiBacklog" class="text-4xl font-bold text-red-500 mt-2">0</p>
           <p class="text-xs text-gray-400 mt-1" title="Mes > Mes KPI y Estatus = Pendiente">Mes > Mes KPI &amp; Pendiente</p>
         </div>
+        <div class="bg-white p-6 rounded-2xl shadow-sm card" style="border-top:4px solid #d97706">
+          <p class="text-gray-500 text-sm">% Tolerancia</p>
+          <p id="kpiPctTolerancia" class="text-4xl font-bold text-amber-500 mt-2">0%</p>
+          <p class="text-xs text-gray-400 mt-1">Tolerancia / Programados</p>
+        </div>
         <div class="bg-white p-6 rounded-2xl shadow-sm card" style="border-top:4px solid var(--navy)">
-          <p class="text-gray-500 text-sm">% de Cumplimiento</p>
-          <p id="kpiCumplimientoAcum" class="text-4xl font-bold mt-2" style="color:var(--navy)">0%</p>
-          <p class="text-xs text-gray-400 mt-1">Incl. tolerancias — histórico</p>
+          <p class="text-gray-500 text-sm">Índice de Desempeño Preventivo</p>
+          <p id="kpiIndiceDesempeno" class="text-4xl font-bold mt-2" style="color:var(--navy)">0%</p>
+          <p class="text-xs text-gray-400 mt-1">% Cumplimiento + % Tolerancia</p>
         </div>
         <div class="bg-white p-6 rounded-2xl shadow-sm card" style="border-top:4px solid var(--orange)">
           <p class="text-gray-500 text-sm">Reprogramaciones</p>
@@ -255,8 +257,8 @@
                     class="hidden flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors btn-primary">
               <i class="ti ti-lock-square text-base"></i> Cerrar Mes
             </button>
-            <button onclick="exportarExcelConHistorico()"
-                    class="flex items-center gap-1.5 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+            <button id="btnExportarExcel" onclick="exportarExcelConHistorico()"
+                    class="hidden flex items-center gap-1.5 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
               <i class="ti ti-file-download text-base"></i> Exportar Excel
             </button>
           </div>
@@ -345,114 +347,6 @@
 
     </div><!-- /tab-resumen -->
 
-    <!-- ════════════ PESTAÑA: INDICADOR ══════════════════════════════════ -->
-    <div id="tab-indicador" class="tab-panel">
-
-      <div class="flex items-center gap-4 mb-6">
-        <label class="text-sm font-semibold text-gray-600 whitespace-nowrap">Filtrar por mes:</label>
-        <select id="indMesFilter" class="border border-gray-200 rounded-xl p-2.5 text-sm min-w-48 bg-white shadow-sm">
-          <option value="">Todos los meses</option>
-        </select>
-        <button onclick="resetIndFilter()"
-                class="btn-primary rounded-xl px-4 py-2 text-sm font-semibold transition-colors shadow-sm">
-          Limpiar
-        </button>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        <!-- Leyenda -->
-        <div class="lg:col-span-5 rounded-2xl p-5 text-sm text-gray-700 border" style="background:rgba(30,58,95,0.04);border-color:rgba(30,58,95,0.15)">
-          <div class="flex items-start gap-2 mb-2">
-            <i class="ti ti-info-circle text-lg flex-shrink-0 mt-0.5" style="color:var(--navy)"></i>
-            <span class="font-semibold">Clasificación según la inicial del campo "Tipo".</span>
-          </div>
-          <ul class="ml-6 space-y-1 list-disc text-gray-600 text-xs">
-            <li><strong>P</strong> = Plantas</li>
-            <li><strong>R</strong> = Ollas</li>
-            <li><strong>B</strong> = Bombas</li>
-            <li><strong>T o EX</strong> = Trascabos (Retroexcavadoras)</li>
-            <li><strong>PG o BG</strong> = Equipos Auxiliares</li>
-            <li class="text-gray-500 mt-1">Se excluyen registros cuyo servicio contenga <em>"MOTOR"</em>.</li>
-          </ul>
-        </div>
-        <!-- KPIs globales Indicador -->
-        <div class="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2 card">
-            <i class="ti ti-clipboard-list text-3xl" style="color:var(--navy)"></i>
-            <p id="indTotalPlan" class="text-4xl font-bold text-gray-800">0</p>
-            <p class="text-xs text-gray-500 text-center">Total Planificados</p>
-          </div>
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2 card">
-            <i class="ti ti-circle-check text-green-500 text-3xl"></i>
-            <p id="indTotalEjec" class="text-4xl font-bold text-green-600">0</p>
-            <p class="text-xs text-gray-500 text-center">Ejecutados</p>
-          </div>
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2 card">
-            <i class="ti ti-clock text-amber-400 text-3xl"></i>
-            <p id="indTotalTol" class="text-4xl font-bold text-amber-500">0</p>
-            <p class="text-xs text-gray-500 text-center">En Tolerancia</p>
-          </div>
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2 card">
-            <i class="ti ti-alert-triangle text-red-500 text-3xl"></i>
-            <p id="indTotalVenc" class="text-4xl font-bold text-red-600">0</p>
-            <p class="text-xs text-gray-500 text-center">Vencidos</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tabla indicador -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-        <div class="overflow-x-auto">
-          <table id="ind-table">
-            <thead>
-              <tr>
-                <th style="min-width:180px;text-align:left">Tipo eq.</th>
-                <th>Plan./Emer</th>
-                <th>Ejecutado</th>
-                <th>En tolerancia</th>
-                <th>Vencidos</th>
-                <th style="min-width:140px">% Avance</th>
-                <th style="min-width:140px">% Tol.</th>
-                <th style="min-width:140px">% Vencidos</th>
-                <th style="min-width:100px">Calificación</th>
-              </tr>
-            </thead>
-            <tbody id="indicadorBody"></tbody>
-            <tfoot id="indicadorFoot"></tfoot>
-          </table>
-        </div>
-      </div>
-
-      <!-- Criterios + notas -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h4 class="font-bold text-gray-800 mb-3 text-sm tracking-wide uppercase">Criterios de Calificación</h4>
-          <p class="text-xs text-gray-500 mb-3">La calificación se calcula con base en % Avance (Ejecutado + Tolerancia):</p>
-          <div class="space-y-2 text-sm">
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></span><strong>80% – 100%</strong>&nbsp;= Excelente</div>
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0"></span><strong>50% – 79%</strong>&nbsp;= Aceptable</div>
-            <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></span><strong>0% – 49%</strong>&nbsp;= Deficiente</div>
-          </div>
-        </div>
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-sm text-gray-600 space-y-3">
-          <div class="flex items-start gap-2"><span class="w-3 h-3 rounded-full bg-green-500 flex-shrink-0 mt-1"></span><span><strong>Ejecutado:</strong> "Estatus" = Ejecutado.</span></div>
-          <div class="flex items-start gap-2"><span class="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0 mt-1"></span><span><strong>En tolerancia:</strong> "Estatus" = Pendiente + Motivo indica tolerancia (horómetro, km, m³).</span></div>
-          <div class="flex items-start gap-2"><span class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0 mt-1"></span><span><strong>Vencidos:</strong> Pendiente sin motivo de tolerancia.</span></div>
-        </div>
-      </div>
-
-      <div class="rounded-2xl p-5 text-sm text-gray-700 border" style="background:rgba(22,163,74,0.04);border-color:rgba(22,163,74,0.2)">
-        <div class="flex items-center gap-2 font-semibold mb-2"><i class="ti ti-circle-check text-green-500"></i> Notas:</div>
-        <ul class="ml-6 space-y-1 list-disc text-gray-600 text-xs">
-          <li>Registros cuyo servicio contiene "MOTOR" no se incluyen.</li>
-          <li>EX (excavadoras) se acumula junto con T (Trascabos/Retro).</li>
-          <li>PG y BG se clasifican como Equipos Auxiliares (no como Plantas ni Bombas).</li>
-          <li>Reprogramado se calcula siempre: Mes ≠ Mes KPI (no depende de la columna Reprogramado).</li>
-        </ul>
-      </div>
-
-    </div><!-- /tab-indicador -->
-
     <!-- ════════════ PESTAÑA: CATÁLOGO ════════════════════════════════════ -->
     <div id="tab-catalogo" class="tab-panel">
 
@@ -475,39 +369,56 @@
     <!-- ════════════ PESTAÑA: HISTORIAL ══════════════════════════════════════ -->
     <div id="tab-historial" class="tab-panel">
 
-      <div class="flex flex-wrap items-center gap-4 mb-4">
-        <h2 class="text-xl font-bold" style="color:var(--navy)">Historial por Equipo</h2>
-        <span id="historialContador" class="hidden text-xs font-semibold px-3 py-1 rounded-full"
-              style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
+      <div class="flex items-center gap-4 mb-4">
+        <h2 class="text-xl font-bold" style="color:var(--navy)">Historial por Unidad</h2>
       </div>
 
-      <!-- Filtros historial -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <select id="histFiltUbic"
-                onchange="renderHistorialCompleto()"
-                class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm">
-          <option value="">Todas las ubicaciones</option>
-        </select>
-        <select id="histFiltEquip"
-                onchange="renderHistorialCompleto()"
-                class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm">
-          <option value="">Todos los equipos</option>
-        </select>
-        <select id="histFiltMes"
-                onchange="renderHistorialCompleto()"
-                class="border border-gray-200 rounded-xl p-3 text-sm bg-white shadow-sm">
-          <option value="">Todos los meses</option>
-        </select>
-        <button onclick="resetFiltrosHistorial()"
-                class="btn-primary rounded-xl px-6 font-semibold text-sm transition-colors shadow-sm">
-          <i class="ti ti-filter-off mr-1"></i> Limpiar
-        </button>
+      <!-- FILTROS -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Ubicación</label>
+            <select id="histFiltroUbicacion" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" onchange="filtrarHistorial()">
+              <option value="">Todas las plantas</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Equipo</label>
+            <input type="text" id="histFiltroEquipo" placeholder="Ej: EX-07"
+                   class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" onkeyup="filtrarHistorial()">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Mes/Año</label>
+            <select id="histFiltroMes" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" onchange="filtrarHistorial()">
+              <option value="">Todos los meses</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      <div id="historialGrupos">
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
-          <i class="ti ti-history text-3xl mb-2 block"></i>
-          Selecciona la pestaña para cargar el historial.
+      <!-- RESULTADOS -->
+      <div id="historialResultados" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h3 class="font-semibold text-gray-800" id="historialTitulo">Historial por Unidad</h3>
+          <span id="historialContador" class="hidden text-xs font-semibold px-3 py-1 rounded-full"
+                style="background:rgba(30,58,95,0.1);color:var(--navy)"></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead style="background:var(--navy)">
+              <tr>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Fecha</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Ubicación</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Tipo Mtto</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Estatus</th>
+                <th class="p-3 text-right text-white font-semibold text-xs uppercase">Costo</th>
+                <th class="p-3 text-left text-white font-semibold text-xs uppercase">Taller</th>
+              </tr>
+            </thead>
+            <tbody id="historialBody" class="divide-y">
+              <tr><td colspan="6" class="p-8 text-center text-gray-400">Los servicios ejecutados aparecerán agrupados por unidad</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -619,7 +530,6 @@
 <script src="js/configuracion.js"></script>
 <script src="js/kpis.js"></script>
 <script src="js/graficas.js"></script>
-<script src="js/indicador.js"></script>
 <script src="js/analisis.js"></script>
 <script src="js/catalogo.js"></script>
 <script src="js/exportaciones.js"></script>
