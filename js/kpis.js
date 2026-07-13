@@ -16,7 +16,9 @@ function KPIs() {
   document.getElementById('kpiBacklog').textContent = m.heredados;   // heredados = mes > mesKPI y pendiente
   document.getElementById('kpiReprogramados').textContent = m.reprogramados;
   document.getElementById('kpiPctTolerancia').textContent = fmtPct(m.pctTolerancia);
-  document.getElementById('kpiIndiceDesempeno').textContent = fmtPct(m.indiceDesempeno);
+  document.getElementById('kpiCumplimientoAcum').textContent = fmtPct(m.pctCumplimiento);
+  const elIndice = document.getElementById('kpiIndiceDesempeno');
+  if (elIndice) elIndice.textContent = fmtPct(m.indiceDesempeno);
 }
 
 // FASE 4: Cierre mensual histórico (usa allData completo)
