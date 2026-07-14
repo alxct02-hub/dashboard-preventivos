@@ -92,10 +92,12 @@ window._onAuthChange = function (user) {
   const emailSpan  = document.getElementById('adminEmailDisplay');
   const importZone = document.getElementById('importZone');
   const btnExport  = document.getElementById('btnExportarExcel');
+  const adminDataPanel = document.getElementById('adminDataPanel');
 
   loginBtn?.classList.toggle('hidden', isAdmin);
   userInfo?.classList.toggle('hidden', !isAdmin);
   btnExport?.classList.toggle('hidden', !isAdmin);
+  adminDataPanel?.classList.toggle('hidden', !isAdmin);
   if (isAdmin) {
     userInfo?.classList.add('flex');
     const displayName = Object.keys(ADMIN_USERS).find(u => ADMIN_USERS[u] === user.email) ?? user.email;
