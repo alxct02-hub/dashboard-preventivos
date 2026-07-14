@@ -102,7 +102,7 @@ function _graficaTendencia() {
         { label: 'Tolerancia',   data: tolData,  backgroundColor: '#f59e0b', stack: 's', borderRadius: 2 },
         { label: 'Vencidos',     data: vencData, backgroundColor: '#ef4444', stack: 's', borderRadius: 2 },
         {
-          label: '% Cumplimiento',
+          label: '% Ejecutados',
           data: cumplData,
           type: 'line',
           yAxisID: 'y2',
@@ -121,7 +121,7 @@ function _graficaTendencia() {
       interaction: { mode: 'index' },
       scales: {
         y:  { stacked: true, title: { display: true, text: 'Servicios' }, beginAtZero: true },
-        y2: { position: 'right', min: 0, max: 100, title: { display: true, text: '% Cumplimiento' }, grid: { drawOnChartArea: false } }
+        y2: { position: 'right', min: 0, max: 100, title: { display: true, text: '% Ejecutaos' }, grid: { drawOnChartArea: false } }
       },
       plugins: { legend: { position: 'bottom' } }
     }
