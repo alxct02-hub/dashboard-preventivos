@@ -70,7 +70,7 @@ function procesarDatos() {
   // 4. Histórico mergeado — usa datos filtrados para que el Cierre Mensual responda a filtros
   APP.metricasPorMes = calcularMetricasPorMesFiltrado();
 
-  // 5. Nuevos KPIs: % Tolerancia e Índice de Desempeño Preventivo
+  // 5. Nuevos KPIs: % Tolerancia y % Cumplimiento
   const pctCumplimiento = pct(ejecutados, programados);
   const pctTolerancia   = pct(enTolerancia, programados);
   const indiceDesempeno = pctCumplimiento + pctTolerancia;
