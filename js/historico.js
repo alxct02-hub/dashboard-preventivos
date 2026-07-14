@@ -8,15 +8,31 @@ APP.estadosMeses = {};  // { "Junio/2026": { estado: "cerrado", ... } }
 async function cargarEstadosMesesAsync() {
   // Primero intentar cargar desde localStorage (respaldo inmediato)
   try {
-    if (typeof window.cargarEstadosMeses === 'function') {
-      APP.estadosMeses = await window.cargarEstadosMeses();
-      // Marcar que Firestore entregó los estados exitosamente
-      // (aunque el resultado sea vacío — eso es un estado legítimo)
-      APP._estadosMesesCargados = true;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const payload = JSON.parse(raw);
+      if (payload.estadosMeses && Object.keys(payload.estadosMeses).length > 0) {
+        APP.estadosMeses = payload.estadosMeses;
+        console.log('Estados cargados desde localStorage:', Object.keys(APP.estadosMeses).length, 'meses');
+      }
     }
   } catch (e) {
-    console.warn('No se pudieron cargar estados de meses:', e.message);
-    APP._estadosMesesCargados = false;
+    console.warn('Error leyendo localStorage:', e.message);
+  }
+
+  // Luego intentar cargar desde Firestore (fuente de verdad)
+  try {
+    if (typeof window.cargarEstadosMeses === 'function') {
+      const estadosFirestore = await window.cargarEstadosMeses();
+      if (estadosFirestore && Object.keys(estadosFirestore).length > 0) {
+        // Combinar: Firestore tiene prioridad, pero localStorage puede tener datos adicionales
+        APP.estadosMeses = { ...APP.estadosMeses, ...estadosFirestore };
+        console.log('Estados cargados desde Firestore:', Object.keys(estadosFirestore).length, 'meses');
+      }
+    }
+  } catch (e) {
+    console.warn('Error cargando desde Firestore:', e.message);
+    console.log('Usando estados de localStorage como respaldo');
   }
 
   // Guardar en localStorage para la próxima vez
@@ -297,8 +313,8 @@ function _mesesAñoActual(formatExample) {
   const fmtMes = (idx) => isNumeric ? String(idx + 1) : MESES_ORDEN[idx];
 
   const meses = [];
-  // Solo año actual hasta el mes en curso (inclusive) — no incluir año anterior
-  for (let i = 0; i <= mesActual; i++) meses.push(`${fmtMes(i)}/${fmtAño(añoActual)}`);
+  // Solo año 2026, hasta Julio (mes 6, índice 0-6 = Enero-Julio)
+  for (let i = 0; i < 7; i++) meses.push(`${fmtMes(i)}/${fmtAño()}`);
   return meses;
 }
 
